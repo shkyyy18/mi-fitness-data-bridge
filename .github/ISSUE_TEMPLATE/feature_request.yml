@@ -1,0 +1,32 @@
+name: Feature request
+description: Propose a generic bridge, schema, export, or device-compatibility improvement.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user-owned data access or portability problem needs solving?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed bridge behavior
+      description: Describe inputs, outputs, and compatibility expectations.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Project boundary
+      options:
+        - label: This request is generic data infrastructure, not medical advice, coaching, or a hosted credential service.
+          required: true
+        - label: Any examples or fixtures will use synthetic data only.
+          required: true

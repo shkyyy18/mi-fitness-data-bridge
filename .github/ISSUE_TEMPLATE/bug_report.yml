@@ -1,0 +1,65 @@
+name: Bug or compatibility report
+description: Report a reproducible bridge, device, dataset, or export problem using redacted synthetic details.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include passTokens, account IDs, databases, raw personal responses, or real health exports.
+  - type: input
+    id: version
+    attributes:
+      label: Bridge version
+      placeholder: 0.2.0 or commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: dataset
+    attributes:
+      label: Dataset or area
+      options:
+        - Authentication/setup
+        - Daily activity
+        - Sleep
+        - Workouts
+        - Body measurements
+        - Heart rate
+        - SpO2/stress/events
+        - SQLite storage
+        - JSON/CSV export
+        - MCP server
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Python version, device model, and account region. Do not include account identifiers.
+      placeholder: Windows 11, Python 3.12, device model, China region
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Use synthetic dates and values where possible.
+      placeholder: Commands run, expected result, and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: redacted_error
+    attributes:
+      label: Redacted error output
+      description: Remove tokens, IDs, paths containing personal names, and health records.
+      render: shell
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: I am authorized to access the account and data involved.
+          required: true
+        - label: I removed credentials, personal identifiers, databases, and real health data.
+          required: true

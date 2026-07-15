@@ -141,6 +141,10 @@ python -m pytest -q -p no:cacheprovider
 python -m ruff check src tests
 ```
 
+## Release
+
+See `CHANGELOG.md` for version history and `docs/release-checklist.md` for the publication and post-release checks.
+
 ## License
 
 MIT. See `LICENSE`. Upstream attribution is preserved in `THIRD_PARTY_NOTICES.md`.
