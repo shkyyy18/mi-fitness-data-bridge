@@ -1,0 +1,30 @@
+# Credentials and private runtime data
+.env
+.env.*
+*.db
+*.sqlite
+*.sqlite3
+*.jsonl
+config.json
+credentials.json
+auth.json
+exports/
+output/
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
