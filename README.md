@@ -4,6 +4,12 @@ Local-first data bridge for exporting **your own** Mi Fitness health data to SQL
 
 > Unofficial community project. It is not affiliated with or endorsed by Xiaomi. The experimental cloud adapter can stop working when Xiaomi changes private endpoints. Use it only with an account and data you are authorized to access.
 
+## Synthetic demo
+
+![Synthetic Mi Fitness Data Bridge terminal demo](https://raw.githubusercontent.com/shkyyy18/mi-fitness-data-bridge/main/docs/assets/bridge-synthetic-demo.png)
+
+*All health values shown above are synthetic. No credential, account identifier, or personal export is included.*
+
 ## What this project does
 
 - Reads Mi Fitness health data through an experimental China-region cloud adapter.
