@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import json
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +19,27 @@ DATASETS: dict[str, tuple[str, str]] = {
     "stress": ("stress_samples", "timestamp"),
     "abnormal_heart_beat": ("abnormal_heart_beat_events", "start_at"),
 }
+
+
+def _validate_date_range(start_date: str | None, end_date: str | None) -> None:
+    parsed: dict[str, date] = {}
+    for name, value in (("start_date", start_date), ("end_date", end_date)):
+        if value is None:
+            continue
+        try:
+            parsed_value = date.fromisoformat(value)
+        except ValueError as exc:
+            raise ValueError(f"{name} must use YYYY-MM-DD format") from exc
+        if parsed_value.isoformat() != value:
+            raise ValueError(f"{name} must use YYYY-MM-DD format")
+        parsed[name] = parsed_value
+
+    if (
+        parsed.get("start_date")
+        and parsed.get("end_date")
+        and parsed["start_date"] > parsed["end_date"]
+    ):
+        raise ValueError("start_date must not be after end_date")
 
 
 def _connect_read_only(database_path: Path) -> sqlite3.Connection:
@@ -76,6 +97,7 @@ def export_database(
         raise ValueError("output_format must be 'json' or 'csv'")
     if dataset is not None and dataset not in DATASETS:
         raise ValueError(f"Unsupported dataset: {dataset}")
+    _validate_date_range(start_date, end_date)
 
     database = Path(database_path)
     output = Path(output_path).expanduser()

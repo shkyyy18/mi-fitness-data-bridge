@@ -4,6 +4,8 @@ import csv
 import json
 import sqlite3
 
+import pytest
+
 from mi_fitness_mcp.export import export_database
 from mi_fitness_mcp.storage import Database
 
@@ -60,3 +62,23 @@ def test_csv_export_can_filter_dataset_and_date(tmp_path):
     with written[0].open(encoding="utf-8-sig", newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert rows[0]["weight_kg"] == "73.2"
+
+
+@pytest.mark.parametrize("invalid_date", ["2026/07/14", "2026-7-14", "not-a-date"])
+def test_export_rejects_malformed_dates_before_opening_database(tmp_path, invalid_date):
+    with pytest.raises(ValueError, match="start_date must use YYYY-MM-DD format"):
+        export_database(
+            tmp_path / "missing.db",
+            tmp_path / "export.json",
+            start_date=invalid_date,
+        )
+
+
+def test_export_rejects_reversed_date_range(tmp_path):
+    with pytest.raises(ValueError, match="start_date must not be after end_date"):
+        export_database(
+            tmp_path / "missing.db",
+            tmp_path / "export.json",
+            start_date="2026-07-15",
+            end_date="2026-07-14",
+        )

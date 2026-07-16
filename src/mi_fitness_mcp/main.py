@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import getpass
 import sys
 
 from mi_fitness_mcp.adapters.mi_fitness_cloud import MiFitnessCloudAdapter
@@ -22,13 +23,37 @@ def _masked(value: str) -> str:
     return f"{value[:2]}***{value[-2:]}"
 
 
-async def _check_adapter_health(adapter) -> tuple[bool, list[str], str | None]:
-    connected = await adapter.connect()
-    region = getattr(adapter, "region", None)
-    data_types = adapter.get_available_data_types() if connected else []
-    if hasattr(adapter, "close"):
-        await adapter.close()
-    return connected, data_types, region
+
+def _create_cloud_adapter(
+    user_id: str, pass_token: str, config: Config
+) -> MiFitnessCloudAdapter:
+    adapter = MiFitnessCloudAdapter(
+        user_id=user_id,
+        pass_token=pass_token,
+        region=config.region,
+    )
+    adapter.http_timeout = config.http_timeout_seconds
+    adapter.request_retries = config.request_retries
+    adapter.max_pages = config.max_pages
+    return adapter
+
+
+async def _check_adapter_health(
+    adapter, timeout_seconds: float | None = None
+) -> tuple[bool, list[str], str | None]:
+    async def check() -> tuple[bool, list[str], str | None]:
+        connected = await adapter.connect()
+        region = getattr(adapter, "region", None)
+        data_types = adapter.get_available_data_types() if connected else []
+        return connected, data_types, region
+
+    try:
+        if timeout_seconds is None:
+            return await check()
+        return await asyncio.wait_for(check(), timeout=timeout_seconds)
+    finally:
+        if hasattr(adapter, "close"):
+            await adapter.close()
 
 
 def cmd_setup(args):
@@ -45,7 +70,7 @@ def cmd_setup(args):
     print("=" * 50)
     print()
     user_id = input("Mi Fitness user_id： ").strip()
-    pass_token = input("Mi Fitness passToken： ").strip()
+    pass_token = getpass.getpass("Mi Fitness passToken： ").strip()
     region = input("区域 [cn]： ").strip() or "cn"
     if not user_id or not pass_token:
         print("❌ 必须提供 user_id 和 passToken")
@@ -77,10 +102,10 @@ def cmd_doctor(args):
             print("✅ 已找到 Mi Fitness 凭据")
             print(f"   User ID: {_masked(user_id)}")
             print(f"   Region: {config.region}")
-            adapter = MiFitnessCloudAdapter(
-                user_id=user_id, pass_token=pass_token, region=config.region
+            adapter = _create_cloud_adapter(user_id, pass_token, config)
+            connected, data_types, region = asyncio.run(
+                _check_adapter_health(adapter, config.health_check_timeout_seconds)
             )
-            connected, data_types, region = asyncio.run(_check_adapter_health(adapter))
             print(f"   连接状态： {'✅' if connected else '❌'}")
             if connected:
                 print(f"   识别到的区域： {region}")
@@ -124,28 +149,49 @@ async def cmd_sync_async(args):
         sys.exit(1)
 
     db = Database(config.database_path)
-    adapter = MiFitnessCloudAdapter(user_id=user_id, pass_token=pass_token, region=config.region)
-    if not await adapter.connect():
-        print("❌ 无法连接到 Mi Fitness API")
-        sys.exit(1)
+    adapter = _create_cloud_adapter(user_id, pass_token, config)
+    try:
+        if not await adapter.connect():
+            print("❌ 无法连接到 Mi Fitness API")
+            sys.exit(1)
 
-    sync_service = SyncService(adapter, db)
-    data_types = [args.type] if args.type else adapter.get_available_data_types()
-    print(f"正在同步 {len(data_types)} 种数据类型...")
-    print()
-    for data_type in data_types:
-        try:
-            result = await sync_service.sync_data_type(
-                data_type=data_type,
-                start_date=args.start_date,
-                end_date=args.end_date,
-            )
-            print(f"✅ {data_type}: 新增 {result['added']} 条，更新 {result['updated']} 条")
-        except Exception as e:
-            print(f"❌ {data_type}: {e}")
+        sync_service = SyncService(
+            adapter,
+            db,
+            default_lookback_days=config.default_lookback_days,
+            chunk_days=config.sync_chunk_days,
+        )
+        data_types = [args.type] if args.type else adapter.get_available_data_types()
+        print(f"正在同步 {len(data_types)} 种数据类型...")
+        print()
+        for data_type in data_types:
+            try:
+                result = await asyncio.wait_for(
+                    sync_service.sync_data_type(
+                        data_type=data_type,
+                        start_date=args.start_date,
+                        end_date=args.end_date,
+                    ),
+                    timeout=config.sync_type_timeout_seconds,
+                )
+                status = result.get("status", "ok")
+                if status == "ok":
+                    print(f"✅ {data_type}: 新增 {result['added']} 条，更新 {result['updated']} 条")
+                else:
+                    marker = "\u26a0\ufe0f" if status == "partial" else "\u274c"
+                    error = result.get("error", "no error detail")
+                    print(
+                        f"{marker} {data_type}: status={status}, "
+                        f"added={result.get('added', 0)}, "
+                        f"updated={result.get('updated', 0)}, error={error}"
+                    )
+            except Exception as e:
+                print(f"❌ {data_type}: {e}")
 
-    print()
-    print("同步完成！")
+        print()
+        print("同步完成！")
+    finally:
+        await adapter.close()
 
 
 def cmd_sync(args):

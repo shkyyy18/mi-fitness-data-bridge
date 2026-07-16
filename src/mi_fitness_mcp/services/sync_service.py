@@ -28,6 +28,11 @@ class SyncService:
             adapter: Data source adapter
             db: Database instance
         """
+        if default_lookback_days < 1:
+            raise ValueError("default_lookback_days must be at least 1")
+        if chunk_days < 1:
+            raise ValueError("chunk_days must be at least 1")
+
         self.adapter = adapter
         self.db = db
         self.default_lookback_days = default_lookback_days

@@ -18,7 +18,7 @@ def _default_logs_path() -> Path:
 
 class Config(BaseModel):
     mode: Literal["mi_fitness_cloud", "not_configured"] = "not_configured"
-    region: str = "ru"
+    region: str = "cn"
     timezone: str = Field(default="UTC")
     database_path: Path = Field(default_factory=_default_database_path)
     logs_path: Path = Field(default_factory=_default_logs_path)

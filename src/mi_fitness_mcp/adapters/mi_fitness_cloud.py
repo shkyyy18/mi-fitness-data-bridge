@@ -106,7 +106,7 @@ def _gen_signature(method: str, path: str, values: dict[str, str], signed_nonce:
 
 class MiFitnessCloudAdapter(DataAdapter):
     def __init__(
-        self, user_id: str | None = None, pass_token: str | None = None, region: str = "ru"
+        self, user_id: str | None = None, pass_token: str | None = None, region: str = "cn"
     ):
         self.user_id = user_id
         self.pass_token = pass_token

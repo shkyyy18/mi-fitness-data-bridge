@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- Hide passToken entry in the interactive setup flow.
+- Close the experimental cloud adapter reliably after CLI diagnostics and synchronization.
+- Use `cn` consistently as the default cloud region.
+- Reject malformed or reversed export date ranges before reading the local database.
+- Apply configured HTTP limits, retries, pagination, sync chunking, and operation timeouts to CLI diagnostics and synchronization.
+- Reject invalid synchronization lookback and chunk sizes instead of risking non-terminating chunk loops.
+- Report partial and failed CLI synchronization results accurately instead of displaying them as successful.
+
 ## [0.2.0] - 2026-07-15
 
 ### Added
