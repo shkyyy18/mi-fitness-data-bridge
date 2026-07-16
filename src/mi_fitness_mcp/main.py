@@ -93,10 +93,16 @@ def cmd_doctor(args):
         print(f"   请运行： {PROGRAM_NAME} setup")
         sys.exit(1)
 
+    healthy = True
     try:
         config = load_config()
         print("✅ 配置已加载")
         print(f"   模式： {config.mode}")
+        if config.mode == "not_configured":
+            print("❌ 服务尚未配置")
+            print(f"   请运行： {PROGRAM_NAME} setup")
+            healthy = False
+
         user_id, pass_token = load_mi_fitness_token()
         if user_id and pass_token:
             print("✅ 已找到 Mi Fitness 凭据")
@@ -110,9 +116,12 @@ def cmd_doctor(args):
             if connected:
                 print(f"   识别到的区域： {region}")
                 print(f"   数据类型： {', '.join(data_types)}")
+            else:
+                healthy = False
         else:
             print("❌ 未找到 Mi Fitness 凭据")
             print(f"   请运行： {PROGRAM_NAME} setup")
+            healthy = False
 
         print()
         print(f"数据库： {config.database_path}")
@@ -123,6 +132,9 @@ def cmd_doctor(args):
             print("ℹ️  数据库将在首次运行时创建")
     except Exception as e:
         print(f"❌ 加载配置失败： {e}")
+        sys.exit(1)
+
+    if not healthy:
         sys.exit(1)
 
 
@@ -164,6 +176,7 @@ async def cmd_sync_async(args):
         data_types = [args.type] if args.type else adapter.get_available_data_types()
         print(f"正在同步 {len(data_types)} 种数据类型...")
         print()
+        had_failures = False
         for data_type in data_types:
             try:
                 result = await asyncio.wait_for(
@@ -176,8 +189,12 @@ async def cmd_sync_async(args):
                 )
                 status = result.get("status", "ok")
                 if status == "ok":
-                    print(f"✅ {data_type}: 新增 {result['added']} 条，更新 {result['updated']} 条")
+                    print(
+                        f"✅ {data_type}: 新增 {result['added']} 条，"
+                        f"更新 {result['updated']} 条"
+                    )
                 else:
+                    had_failures = True
                     marker = "\u26a0\ufe0f" if status == "partial" else "\u274c"
                     error = result.get("error", "no error detail")
                     print(
@@ -186,10 +203,15 @@ async def cmd_sync_async(args):
                         f"updated={result.get('updated', 0)}, error={error}"
                     )
             except Exception as e:
+                had_failures = True
                 print(f"❌ {data_type}: {e}")
 
         print()
+        if had_failures:
+            print("同步结束，但存在失败或部分成功的数据类型。")
+            sys.exit(1)
         print("同步完成！")
+
     finally:
         await adapter.close()
 

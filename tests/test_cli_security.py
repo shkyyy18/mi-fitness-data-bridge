@@ -64,6 +64,55 @@ def test_interactive_setup_hides_pass_token(monkeypatch):
     assert saved["config"].region == "cn"
 
 
+
+def test_doctor_exits_nonzero_when_credentials_are_missing(monkeypatch, tmp_path, capsys):
+    config_path = tmp_path / "config.json"
+    config_path.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(cli, "get_config_path", lambda: config_path)
+    monkeypatch.setattr(
+        cli,
+        "load_config",
+        lambda: Config(mode="mi_fitness_cloud", database_path=tmp_path / "mi_fitness.db"),
+    )
+    monkeypatch.setattr(cli, "load_mi_fitness_token", lambda: (None, None))
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.cmd_doctor(SimpleNamespace())
+
+    assert exc_info.value.code == 1
+    assert "未找到 Mi Fitness 凭据" in capsys.readouterr().out
+
+
+def test_doctor_exits_nonzero_when_cloud_connection_fails(monkeypatch, tmp_path, capsys):
+    config_path = tmp_path / "config.json"
+    config_path.write_text("{}", encoding="utf-8")
+    closed: list[bool] = []
+
+    class DisconnectedAdapter:
+        region = "cn"
+
+        async def connect(self):
+            return False
+
+        async def close(self):
+            closed.append(True)
+
+    monkeypatch.setattr(cli, "get_config_path", lambda: config_path)
+    monkeypatch.setattr(
+        cli,
+        "load_config",
+        lambda: Config(mode="mi_fitness_cloud", database_path=tmp_path / "mi_fitness.db"),
+    )
+    monkeypatch.setattr(cli, "load_mi_fitness_token", lambda: ("synthetic-user", "synthetic-token"))
+    monkeypatch.setattr(cli, "_create_cloud_adapter", lambda *args: DisconnectedAdapter())
+
+    with pytest.raises(SystemExit) as exc_info:
+        cli.cmd_doctor(SimpleNamespace())
+
+    assert exc_info.value.code == 1
+    assert closed == [True]
+    assert "连接状态： ❌" in capsys.readouterr().out
+
 def test_health_check_honors_timeout_and_closes_adapter():
     class SlowAdapter:
         closed = False
@@ -189,9 +238,11 @@ def test_sync_applies_configured_chunking_timeout_and_error_status(
     monkeypatch.setattr(cli.asyncio, "wait_for", recording_wait_for)
 
     args = SimpleNamespace(type="daily_activity", start_date=None, end_date=None)
-    asyncio.run(cli.cmd_sync_async(args))
+    with pytest.raises(SystemExit) as exc_info:
+        asyncio.run(cli.cmd_sync_async(args))
 
     output = capsys.readouterr().out
+    assert exc_info.value.code == 1
     assert captured["lookback_days"] == 45
     assert captured["chunk_days"] == 5
     assert captured["closed"] is True
