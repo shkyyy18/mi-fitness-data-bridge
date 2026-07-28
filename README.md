@@ -2,6 +2,8 @@
 
 Local-first data bridge for exporting **your own** Mi Fitness health data to SQLite, JSON, CSV, Python, and MCP-compatible tools.
 
+*Your Mi Fitness app will happily show you your own steps, sleep, and heart rate — but never let you take them anywhere. This bridge puts your own data into a SQLite file on your own disk.*
+
 > Unofficial community project. It is not affiliated with or endorsed by Xiaomi. The experimental cloud adapter can stop working when Xiaomi changes private endpoints. Use it only with an account and data you are authorized to access.
 
 ## Synthetic demo
@@ -19,6 +21,14 @@ Local-first data bridge for exporting **your own** Mi Fitness health data to SQL
 - Provides one reusable connector implementation for downstream projects such as a personal fat-loss advisor.
 
 It deliberately does **not** provide medical advice, weight-loss coaching, hosted account access, or a multi-user cloud service.
+
+## Why this bridge?
+
+| Before | After |
+|---|---|
+| Your health history lives only inside the Mi Fitness app; the only way to "export" it is screenshots. | `mi-fitness-bridge sync` pulls daily activity, sleep, workouts, body measurements, heart rate, SpO2, and stress into a normalized local SQLite database. |
+| Answering "how did I sleep last month?" means scrolling the app day by day. | `mi-fitness-bridge export --format csv --type sleep --start-date ... --end-date ...` writes a spreadsheet-ready CSV filtered to exactly that range. |
+| Giving an AI assistant access to your health data means handing credentials to a hosted service. | `mi-fitness-bridge serve` exposes local MCP query tools over your own database; the passToken stays in the OS keyring and exports never contain it. |
 
 ## Supported datasets
 
@@ -144,6 +154,21 @@ python -m ruff check src tests
 ## Release
 
 See `CHANGELOG.md` for version history and `docs/release-checklist.md` for the publication and post-release checks.
+
+## Traction so far
+
+This is a young, single-maintainer project, and we would rather show real numbers than polish:
+
+- **Stars:** 1 — currently the only star across the maintainer's entire GitHub account, and it is on this repository. If this bridge is useful to you, your star genuinely stands out.
+- **Traffic (GitHub insights, 14 days ending 2026-07-25):** 36 unique cloners, 2 unique visitors.
+- **External contributions:** none yet — no outside pull requests or issues have arrived. The queue is open and curated; see the [good first issues](https://github.com/shkyyy18/mi-fitness-data-bridge/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+- **Test suite:** 19 tests pass locally (`python -m pytest -q -p no:cacheprovider`), verified 2026-07-28 with Python 3.14 on Windows.
+
+The maintainer's sibling project [AgentCron](https://github.com/shkyyy18/cc-autopilot) received its first three external pull requests through exactly this kind of good-first-issue queue; the [first-contribution case study](https://github.com/shkyyy18/cc-autopilot/blob/main/docs/first-contribution-case-study.md) documents what made those tasks approachable. The same design is applied here: small scope, written acceptance criteria, offline-verifiable with synthetic data, and no real health data ever required.
+
+## Support the project
+
+If this bridge finally let you do something with your own Mi Fitness data — a chart, a backup, an MCP-powered query — a star on [GitHub](https://github.com/shkyyy18/mi-fitness-data-bridge) helps the next person who wants their own data back find it. And if you have ten minutes, a good first issue is the fastest way to make the bridge better.
 
 ## License
 
