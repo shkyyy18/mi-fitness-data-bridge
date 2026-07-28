@@ -12,6 +12,61 @@ Local-first data bridge for exporting **your own** Mi Fitness health data to SQL
 
 *All health values shown above are synthetic. No credential, account identifier, or personal export is included.*
 
+## Verified demo
+
+Captured on 2026-07-20 on Windows (Python 3.14) against commit on `main`. All data is synthetic; no credentials or network access are involved.
+
+Test suite:
+
+```text
+$ python -m pytest -q -p no:cacheprovider
+.................                                                        [100%]
+17 passed in 6.43s
+```
+
+End-to-end synthetic demo (`examples/synthetic_demo.py` seeds a local SQLite cache with synthetic records, then runs the real JSON/CSV export pipeline):
+
+```text
+$ python examples/synthetic_demo.py
+Seeded synthetic database: C:\Users\njshk\AppData\Local\Temp\mi-fitness-demo-53el7cfh\mi_fitness.db
+  daily_activity: 2026-07-15 .. 2026-07-15 (1 day(s))
+  sleep: 2026-07-14 .. 2026-07-14 (1 day(s))
+  workouts: 2026-07-15 .. 2026-07-15 (1 day(s))
+  body_measurements: 2026-07-15 .. 2026-07-15 (1 day(s))
+
+Export completed
+  mi_fitness.json
+  daily_activity.csv
+  sleep.csv
+  workouts.csv
+  body_measurements.csv
+  heart_rate.csv
+  spo2.csv
+  stress.csv
+  abnormal_heart_beat.csv
+
+JSON envelope:
+  schema_version: 1.0
+  source: mi_fitness_data_bridge
+  records.daily_activity: 1 row(s)
+  records.sleep: 1 row(s)
+  records.workouts: 1 row(s)
+  records.body_measurements: 1 row(s)
+
+Sample sleep row (synthetic):
+  start_at=2026-07-14T23:20:00 end_at=2026-07-15T07:05:00
+  duration_minutes=465 score=86
+  stages=[{"stage": "deep", "minutes": 82}, {"stage": "light", "minutes": 271}, {"stage": "rem", "minutes": 88}, {"stage": "awake", "minutes": 24}]
+```
+
+## Merged from health-assistant
+
+The `health-assistant` project (local-first personal health dashboard: Strava, sleep, body composition, meal analysis) has been merged into this repository and its original repo is archived. Absorbed assets live under `docs/health-assistant/`:
+
+- `analytics.py` — dependency-free reference implementation of the training/recovery summary and advice engine (7-day training stats, acute/chronic load ratio, readiness check, daily workout suggestion).
+- `coaching_methodology.md` — the explainable cycling-coaching, body-composition, and sports-nutrition methodology behind it.
+- `README.md` — the full migration note, including what was intentionally not ported (FastAPI dashboard, Strava OAuth/Webhook plumbing, meal-photo analysis) and why.
+
 ## What this project does
 
 - Reads Mi Fitness health data through an experimental China-region cloud adapter.
