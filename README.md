@@ -1,6 +1,6 @@
 > English version: [README.en.md](README.en.md)
 
-# Mi Fitness Data Bridge
+# 米家数据桥（Mi Fitness Data Bridge）
 
 本地优先的数据桥接器，把**你自己的**小米运动健康数据导出到 SQLite、JSON、CSV、Python 以及兼容 MCP 的工具。
 
@@ -9,12 +9,6 @@
 <p align="center"><img src="docs/assets/bridge-hero.png" width="100%" alt="米家设备通过 Mi Fitness Data Bridge 连接各大 AI 模型"></p>
 
 > 非官方社区项目。本项目与小米没有任何隶属或背书关系。实验性的云端适配器可能因为小米改动私有接口而随时失效。请只在你有权访问的账号和数据上使用。
-
-## 合成数据演示
-
-![Synthetic Mi Fitness Data Bridge terminal demo](docs/assets/bridge-synthetic-demo.png)
-
-*上图中的所有健康数值都是合成数据，不包含任何凭据、账号标识或个人导出内容。*
 
 ## 实测验证
 
@@ -214,21 +208,6 @@ python -m ruff check src tests
 
 版本历史见 `CHANGELOG.md`，发布及发布后检查项见 `docs/release-checklist.md`。
 
-## 目前的进展
-
-这是一个年轻的单人维护项目，我们宁可展示真实数字，也不愿粉饰：
-
-- **Star 数：** 1 —— 目前维护者整个 GitHub 账号上唯一的一颗 star，就在这个仓库上。如果这个桥接器对你有用，你的一颗 star 真的会很显眼。
-- **流量（GitHub insights，截至 2026-07-25 的 14 天）：** 36 个独立克隆者，2 个独立访客。
-- **外部贡献：** 暂无 —— 还没有收到外部的 pull request 或 issue。队列是开放的、经过筛选的，见 [good first issues](https://github.com/shkyyy18/mi-fitness-data-bridge/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)。
-- **测试套件：** 本地 19 个测试全部通过（`python -m pytest -q -p no:cacheprovider`），2026-07-28 在 Windows 上用 Python 3.14 验证。
-
-维护者的姊妹项目 [AgentCron](https://github.com/shkyyy18/cc-autopilot) 正是通过同样的 good-first-issue 队列收到了它的前三个外部 pull request；[首次贡献案例分析](https://github.com/shkyyy18/cc-autopilot/blob/main/docs/first-contribution-case-study.md)记录了是什么让这些任务容易上手。这里采用了相同的设计：范围小、验收标准白纸黑字、用合成数据即可离线验证、全程不需要真实健康数据。
-
 ## 支持这个项目
 
-如果这个桥接器终于让你能用自己的小米运动健康数据做点什么——一张图表、一份备份、一次 MCP 驱动的查询——在 [GitHub](https://github.com/shkyyy18/mi-fitness-data-bridge) 上点一颗 star，能帮下一个想拿回自己数据的人找到它。如果你有十分钟，挑一个 good first issue 是让这个桥接器变得更好的最快方式。
-
-## 许可证
-
-MIT。见 `LICENSE`。上游署名保留在 `THIRD_PARTY_NOTICES.md` 中。
+如果这个工具帮到了你，在 [GitHub](https://github.com/shkyyy18/mi-fitness-data-bridge) 上帮我点个 star 吧。
