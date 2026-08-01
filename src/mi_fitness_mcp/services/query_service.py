@@ -1,10 +1,21 @@
 """Query service for retrieving data from database."""
 
+import math
+import statistics
 from contextlib import suppress
 from datetime import datetime, timedelta
+from itertools import pairwise
 from typing import Any
 
 from mi_fitness_mcp.storage import Database
+
+# Heart rate zones as fractions of a reference max heart rate (upper bound excluded).
+ZONE_FRACTIONS = (0.6, 0.7, 0.8, 0.9)
+
+# Agent-safety limits for workout_series: responses must stay small enough for LLM context.
+DEFAULT_RESOLUTION_SECONDS = 60
+DEFAULT_MAX_POINTS = 400
+HARD_MAX_POINTS = 500
 
 
 class QueryService:
@@ -231,6 +242,200 @@ class QueryService:
             )
 
         return workouts
+
+    def get_workout_series(
+        self,
+        workout_id: str,
+        metric: str = "heart_rate",
+        resolution: int = DEFAULT_RESOLUTION_SECONDS,
+        max_points: int = DEFAULT_MAX_POINTS,
+    ) -> dict[str, Any]:
+        """Get an agent-safe time series for one workout metric.
+
+        The full-resolution series is never returned raw when it exceeds
+        ``max_points``; instead it is downsampled into fixed time buckets whose
+        mean (plus per-bucket min/max) is computed in SQLite. The payload always
+        states whether downsampling happened, which method was used, and how
+        many source points it represents, so agents never mistake a downsampled
+        series for full precision. Summary statistics and time-in-zone are
+        always computed on the full-resolution samples.
+
+        Raises:
+            ValueError: if the metric is unsupported or the workout is unknown
+        """
+        if metric != "heart_rate":
+            raise ValueError(f"Unsupported workout metric: {metric}")
+        if resolution < 1:
+            raise ValueError("resolution must be at least 1 second")
+        max_points = max(1, min(int(max_points), HARD_MAX_POINTS))
+
+        workout = self.db.get_workout(self.user_id, workout_id)
+        if workout is None:
+            raise ValueError(f"Unknown workout_id: {workout_id}")
+
+        start_at = workout["start_at"]
+        end_at = workout["end_at"]
+
+        # Prefer explicit workout samples; fall back to every sample in the window.
+        samples = self.db.query_heart_rate_samples_range(
+            self.user_id, start_at, end_at, sample_type="workout"
+        )
+        sample_type = "workout"
+        if not samples:
+            samples = self.db.query_heart_rate_samples_range(self.user_id, start_at, end_at)
+            sample_type = "any"
+
+        bpms = [int(s["bpm"]) for s in samples]
+        source_points = len(bpms)
+
+        start_dt = datetime.fromisoformat(start_at)
+        end_dt = datetime.fromisoformat(end_at)
+        duration_seconds = max(1, int((end_dt - start_dt).total_seconds()))
+
+        if source_points == 0:
+            return {
+                "workout_id": workout_id,
+                "activity_type": workout["activity_type"],
+                "metric": metric,
+                "unit": "bpm",
+                "start_at": start_at,
+                "end_at": end_at,
+                "duration_seconds": duration_seconds,
+                "resolution_seconds": resolution,
+                "points": [],
+                "stats": None,
+                "time_in_zone": None,
+                "downsampled": False,
+                "source_points": 0,
+                "returned_points": 0,
+                "method": "none",
+                "data_quality": {
+                    "sample_type": sample_type,
+                    "expected_samples": 0,
+                    "coverage_ratio": 0.0,
+                    "longest_gap_seconds": duration_seconds,
+                    "missing_metrics": [metric],
+                },
+            }
+
+        timestamps = [datetime.fromisoformat(s["timestamp"]) for s in samples]
+        gaps = [(b - a).total_seconds() for a, b in pairwise(timestamps)]
+        median_interval = statistics.median(gaps) if gaps else 1.0
+        longest_gap = max(gaps) if gaps else 0.0
+
+        downsampled = source_points > max_points
+        if downsampled:
+            # Adaptive bucket size: honor the requested resolution unless it would
+            # produce more points than the caller allows.
+            bucket_seconds = max(resolution, math.ceil(duration_seconds / max_points))
+            buckets = self.db.query_heart_rate_buckets(
+                self.user_id,
+                start_at,
+                end_at,
+                bucket_seconds,
+                sample_type="workout" if sample_type == "workout" else None,
+            )
+            points = [
+                {
+                    "t": str(b["bucket_start"]).replace(" ", "T"),
+                    "value": round(b["avg_bpm"], 1),
+                    "min": b["min_bpm"],
+                    "max": b["max_bpm"],
+                    "samples": b["sample_count"],
+                }
+                for b in buckets
+            ]
+            method = "time_bucket_mean"
+        else:
+            bucket_seconds = resolution
+            points = [
+                {"t": s["timestamp"], "value": int(s["bpm"])}
+                for s in samples
+            ]
+            method = "none"
+
+        quartiles = statistics.quantiles(bpms, n=4, method="inclusive")
+        stats = {
+            "avg": round(statistics.fmean(bpms), 1),
+            "min": min(bpms),
+            "max": max(bpms),
+            "p25": round(quartiles[0], 1),
+            "p50": round(quartiles[1], 1),
+            "p75": round(quartiles[2], 1),
+        }
+
+        reference_max = workout.get("max_heart_rate_bpm") or max(bpms)
+        bounds = [int(reference_max * f) for f in ZONE_FRACTIONS]
+        zone_seconds = [0.0] * (len(bounds) + 1)
+        for bpm in bpms:
+            zone = sum(bpm >= bound for bound in bounds)
+            zone_seconds[zone] += median_interval
+        time_in_zone = {
+            "zone_model": "percent_of_reference_max_hr",
+            "reference_max_bpm": reference_max,
+            "zones": [
+                {
+                    "zone": i + 1,
+                    "min_bpm": bounds[i - 1] if i > 0 else None,
+                    "max_bpm": bounds[i] - 1 if i < len(bounds) else None,
+                    "seconds": round(zone_seconds[i]),
+                }
+                for i in range(len(bounds) + 1)
+            ],
+        }
+
+        expected_samples = duration_seconds / median_interval if median_interval else 0
+        return {
+            "workout_id": workout_id,
+            "activity_type": workout["activity_type"],
+            "metric": metric,
+            "unit": "bpm",
+            "start_at": start_at,
+            "end_at": end_at,
+            "duration_seconds": duration_seconds,
+            "resolution_seconds": bucket_seconds,
+            "points": points,
+            "stats": stats,
+            "time_in_zone": time_in_zone,
+            "downsampled": downsampled,
+            "source_points": source_points,
+            "returned_points": len(points),
+            "method": method,
+            "data_quality": {
+                "sample_type": sample_type,
+                "expected_samples": round(expected_samples),
+                "coverage_ratio": round(min(1.0, source_points / expected_samples), 3)
+                if expected_samples
+                else 0.0,
+                "longest_gap_seconds": round(longest_gap),
+                "missing_metrics": [],
+            },
+        }
+
+    def get_data_quality(
+        self,
+        data_type: str,
+        missing_metrics: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Summarize local data quality for a data type.
+
+        Combines coverage days, the last sync timestamp, and metrics that are
+        absent from the cached records so agents can judge how much to trust
+        summary/list responses.
+        """
+        coverage = next(
+            (c for c in self.db.get_data_coverage(self.user_id) if c["data_type"] == data_type),
+            None,
+        )
+        sync_state = self.db.get_sync_state(data_type)
+        return {
+            "data_type": data_type,
+            "first_date": coverage["first_date"] if coverage else None,
+            "last_date": coverage["last_date"] if coverage else None,
+            "days_with_data": coverage["days_with_data"] if coverage else 0,
+            "last_sync_at": sync_state.get("last_sync_at") if sync_state else None,
+            "missing_metrics": missing_metrics or [],
+        }
 
     def get_body_measurements(
         self,

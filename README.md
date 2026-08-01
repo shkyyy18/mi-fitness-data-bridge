@@ -174,7 +174,7 @@ mi-fitness-bridge serve
 mi-fitness-mcp serve
 ```
 
-可用的工具包括连接状态、同步、覆盖范围、每日摘要、身体测量、睡眠、运动、心率、血氧（SpO2）和压力查询。
+可用的工具包括连接状态、同步、覆盖范围、每日摘要、身体测量、睡眠、运动、心率、血氧（SpO2）和压力查询，以及面向 agent 的 `workout_series` 运动时序工具——按 `max_points` 硬上限自动降采样（固定时间桶均值，SQLite 内聚合），并在响应中如实标注 `downsampled`、`source_points`、`returned_points`、`method`，同时给出全精度统计（avg/min/max/分位数）与心率区间时间。`query_workouts`、`get_daily_summary` 等列表/汇总工具附带 `data_quality`（覆盖天数、缺失指标、最后同步时间）。
 
 ## 作为 Python 依赖使用
 

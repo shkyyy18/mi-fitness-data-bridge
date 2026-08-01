@@ -178,7 +178,7 @@ mi-fitness-bridge serve
 mi-fitness-mcp serve
 ```
 
-Available tools include connection status, synchronization, coverage, daily summaries, body measurements, sleep, workouts, heart rate, SpO2, and stress queries.
+Available tools include connection status, synchronization, coverage, daily summaries, body measurements, sleep, workouts, heart rate, SpO2, and stress queries, plus the agent-facing `workout_series` tool — it auto-downsamples long workout time series under a hard `max_points` cap (fixed time-bucket means, aggregated in SQLite) and honestly reports `downsampled`, `source_points`, `returned_points`, and `method`, alongside full-resolution stats (avg/min/max/quantiles) and heart-rate time-in-zone. List/summary tools such as `query_workouts` and `get_daily_summary` carry a `data_quality` field (coverage days, missing metrics, last sync time).
 
 ## Use as a Python dependency
 

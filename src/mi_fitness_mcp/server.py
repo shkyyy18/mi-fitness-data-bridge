@@ -185,6 +185,40 @@ async def list_tools() -> list[Tool]:
             },
         ),
         Tool(
+            name="workout_series",
+            description=(
+                "Get an agent-safe, auto-downsampled time series for a workout metric. "
+                "Always reports downsampled/source_points/returned_points/method plus "
+                "full-resolution summary stats; never returns more than max_points points."
+            ),
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "workout_id": {"type": "string"},
+                    "metric": {
+                        "type": "string",
+                        "enum": ["heart_rate"],
+                        "default": "heart_rate",
+                    },
+                    "resolution": {
+                        "type": "integer",
+                        "default": 60,
+                        "description": (
+                            "Requested bucket size in seconds; increased automatically "
+                            "when needed to stay within max_points"
+                        ),
+                    },
+                    "max_points": {
+                        "type": "integer",
+                        "default": 400,
+                        "maximum": 500,
+                        "description": "Hard cap on returned points (server-enforced)",
+                    },
+                },
+                "required": ["workout_id"],
+            },
+        ),
+        Tool(
             name="query_spo2",
             description="Query blood oxygen saturation samples",
             inputSchema={
@@ -258,6 +292,8 @@ async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
             result = await _handle_query_sleep(arguments)
         elif name == "query_workouts":
             result = await _handle_query_workouts(arguments)
+        elif name == "workout_series":
+            result = await _handle_workout_series(arguments)
         elif name == "query_spo2":
             result = await _handle_query_spo2(arguments)
         elif name == "query_stress":
@@ -497,7 +533,19 @@ async def _handle_get_daily_summary(arguments: dict) -> dict:
     if not start_date or not end_date:
         return {"status": "error", "error": "date or start_date/end_date required"}
     summaries = query_service.get_daily_summaries(start_date, end_date)
-    return QueryResponse(status="ok", source="cache", data={"summaries": summaries}).model_dump()
+    missing = [
+        metric
+        for metric in ("total_kcal", "floors", "active_minutes")
+        if summaries and all(not summary.get(metric) for summary in summaries)
+    ]
+    return QueryResponse(
+        status="ok",
+        source="cache",
+        data={
+            "summaries": summaries,
+            "data_quality": query_service.get_data_quality("daily_activity", missing),
+        },
+    ).model_dump()
 
 
 async def _handle_query_metric_series(arguments: dict) -> dict:
@@ -567,9 +615,35 @@ async def _handle_query_workouts(arguments: dict) -> dict:
         min_duration=arguments.get("min_duration"),
         min_distance_km=arguments.get("min_distance_km"),
     )
+    missing = [
+        metric
+        for metric in ("avg_heart_rate_bpm", "distance_m", "calories_kcal")
+        if workouts and all(workout.get(metric) is None for workout in workouts)
+    ]
     return QueryResponse(
-        status="ok", source="cache", data={"workouts": workouts, "count": len(workouts)}
+        status="ok",
+        source="cache",
+        data={
+            "workouts": workouts,
+            "count": len(workouts),
+            "data_quality": query_service.get_data_quality("workouts", missing),
+        },
     ).model_dump()
+
+
+async def _handle_workout_series(arguments: dict) -> dict:
+    if not query_service:
+        return {"status": "error", "error": "Query service not initialized"}
+    try:
+        series = query_service.get_workout_series(
+            workout_id=arguments["workout_id"],
+            metric=arguments.get("metric", "heart_rate"),
+            resolution=arguments.get("resolution", 60),
+            max_points=arguments.get("max_points", 400),
+        )
+    except ValueError as exc:
+        return {"status": "error", "error": str(exc)}
+    return QueryResponse(status="ok", source="cache", data=series).model_dump()
 
 
 async def _handle_query_spo2(arguments: dict) -> dict:
