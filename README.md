@@ -164,6 +164,8 @@ mi-fitness-bridge export --format json --type sleep \
 
 导出文件永远不会包含已保存的小米 passToken。导出的健康记录仍然是敏感的个人数据，默认已被 Git 忽略。
 
+导出格式说明（JSON 信封结构、CSV 布局、闭区间日期筛选规则）见 [Export format](docs/export-format.md)。
+
 ## MCP 服务
 
 兼容命令仍然可用：

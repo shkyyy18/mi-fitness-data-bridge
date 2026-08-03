@@ -168,6 +168,8 @@ mi-fitness-bridge export --format json --type sleep \
 
 Exports never contain the saved Xiaomi passToken. Exported health records are still sensitive personal data and are ignored by Git by default.
 
+See [Export format](docs/export-format.md) for the JSON envelope, CSV layout, and inclusive date filtering rules.
+
 ## MCP server
 
 The compatibility command remains available:
