@@ -231,4 +231,4 @@ If this bridge finally let you do something with your own Mi Fitness data — a 
 
 ## License
 
-MIT. See `LICENSE`. Upstream attribution is preserved in `THIRD_PARTY_NOTICES.md`.
+AGPL-3.0-only (versions up to 2026-08-03 were MIT). See `LICENSE`. Upstream attribution is preserved in `THIRD_PARTY_NOTICES.md`.

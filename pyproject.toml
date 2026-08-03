@@ -7,7 +7,7 @@ name = "mi-fitness-data-bridge"
 version = "0.2.0"
 description = "Local-first bridge for Mi Fitness health data, portable exports, and MCP"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "AGPL-3.0-only"}
 requires-python = ">=3.11"
 authors = [
     {name = "Aleksej Kubulashvili", email = "kubulashvili@users.noreply.github.com"},
@@ -19,7 +19,7 @@ keywords = ["mcp", "model-context-protocol", "mi-fitness", "xiaomi", "fitness", 
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: End Users/Desktop",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: GNU Affero General Public License v3",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
