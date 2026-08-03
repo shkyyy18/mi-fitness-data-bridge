@@ -16,3 +16,12 @@ python -m ruff check src tests
 ```
 
 Compatibility reports should state device model, account region, date range, available data types, and a redacted error message.
+
+## Licensing of contributions
+
+This project is licensed under AGPL-3.0-only. By submitting a pull request, you agree that:
+
+1. your contribution is licensed to the project under AGPL-3.0-only; and
+2. you grant the maintainer (shkyyy18) the perpetual right to also license your contribution under other terms, including commercial licenses — this keeps the community edition free and AGPL while preserving the maintainer's ability to offer commercial licensing.
+
+If you do not agree, please open an issue to discuss before submitting.
