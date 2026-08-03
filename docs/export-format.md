@@ -33,8 +33,8 @@ Synthetic example:
       {
         "date": "2026-07-15",
         "steps": 8000,
-        "distance_meters": 5200,
-        "active_calories": 310,
+        "distance_m": 5200,
+        "active_kcal": 310,
         "active_minutes": 45
       }
     ]

@@ -1,30 +1,28 @@
-# Mi Fitness Data Bridge
+> English version: [README.en.md](README.en.md)
 
-Local-first data bridge for exporting **your own** Mi Fitness health data to SQLite, JSON, CSV, Python, and MCP-compatible tools.
+# 米家数据桥（Mi Fitness Data Bridge）
 
-*Your Mi Fitness app will happily show you your own steps, sleep, and heart rate — but never let you take them anywhere. This bridge puts your own data into a SQLite file on your own disk.*
+本地优先的数据桥接器，把**你自己的**小米运动健康数据导出到 SQLite、JSON、CSV、Python 以及兼容 MCP 的工具。
 
-> Unofficial community project. It is not affiliated with or endorsed by Xiaomi. The experimental cloud adapter can stop working when Xiaomi changes private endpoints. Use it only with an account and data you are authorized to access.
+*小米运动健康 App 很乐意给你看你的步数、睡眠和心率——却从不让你把这些数据带走。这个桥接器把你自己的数据放进你自己硬盘上的一个 SQLite 文件里。*
 
-## Synthetic demo
+<p align="center"><img src="docs/assets/bridge-hero.png" width="100%" alt="米家设备通过 Mi Fitness Data Bridge 连接各大 AI 模型"></p>
 
-![Synthetic Mi Fitness Data Bridge terminal demo](https://raw.githubusercontent.com/shkyyy18/mi-fitness-data-bridge/main/docs/assets/bridge-synthetic-demo.png)
+> 非官方社区项目。本项目与小米没有任何隶属或背书关系。实验性的云端适配器可能因为小米改动私有接口而随时失效。请只在你有权访问的账号和数据上使用。
 
-*All health values shown above are synthetic. No credential, account identifier, or personal export is included.*
+## 实测验证
 
-## Verified demo
+2026-07-20 在 Windows（Python 3.14）上基于 `main` 分支的提交录制。所有数据均为合成数据，不涉及任何凭据或网络访问。（测试数量已于 2026-07-29 复核更新。）
 
-Captured on 2026-07-20 on Windows (Python 3.14) against commit on `main`. All data is synthetic; no credentials or network access are involved.
-
-Test suite:
+测试套件：
 
 ```text
 $ python -m pytest -q -p no:cacheprovider
-.................                                                        [100%]
-17 passed in 6.43s
+...................                                                      [100%]
+19 passed in 6.43s
 ```
 
-End-to-end synthetic demo (`examples/synthetic_demo.py` seeds a local SQLite cache with synthetic records, then runs the real JSON/CSV export pipeline):
+端到端合成演示（`examples/synthetic_demo.py` 先用合成记录填充本地 SQLite 缓存，再跑真实的 JSON/CSV 导出流水线）：
 
 ```text
 $ python examples/synthetic_demo.py
@@ -59,44 +57,44 @@ Sample sleep row (synthetic):
   stages=[{"stage": "deep", "minutes": 82}, {"stage": "light", "minutes": 271}, {"stage": "rem", "minutes": 88}, {"stage": "awake", "minutes": 24}]
 ```
 
-## Merged from health-assistant
+## 已合并 health-assistant 项目
 
-The `health-assistant` project (local-first personal health dashboard: Strava, sleep, body composition, meal analysis) has been merged into this repository and its original repo is archived. Absorbed assets live under `docs/health-assistant/`:
+`health-assistant` 项目（本地优先的个人健康看板：Strava、睡眠、身体成分、饮食分析）已合并进本仓库，其原仓库已归档。吸收过来的资产位于 `docs/health-assistant/` 目录下：
 
-- `analytics.py` — dependency-free reference implementation of the training/recovery summary and advice engine (7-day training stats, acute/chronic load ratio, readiness check, daily workout suggestion).
-- `coaching_methodology.md` — the explainable cycling-coaching, body-composition, and sports-nutrition methodology behind it.
-- `README.md` — the full migration note, including what was intentionally not ported (FastAPI dashboard, Strava OAuth/Webhook plumbing, meal-photo analysis) and why.
+- `analytics.py` —— 零依赖的训练/恢复总结与建议引擎参考实现（7 天训练统计、急性/慢性负荷比、就绪度检查、每日训练建议）。
+- `coaching_methodology.md` —— 其背后可解释的骑行教练、身体成分与运动营养方法论。
+- `README.md` —— 完整的迁移说明，包括有意未移植的部分（FastAPI 看板、Strava OAuth/Webhook 管线、餐食照片分析）以及原因。
 
-## What this project does
+## 这个项目做什么
 
-- Reads Mi Fitness health data through an experimental China-region cloud adapter.
-- Stores normalized records in a local SQLite database.
-- Exports portable JSON or CSV without credentials.
-- Exposes local MCP query tools for personal automation.
-- Provides one reusable connector implementation for downstream projects such as a personal fat-loss advisor.
+- 通过一个实验性的中国区云端适配器读取小米运动健康数据。
+- 把规范化后的记录存进本地 SQLite 数据库。
+- 导出不含凭据的便携式 JSON 或 CSV。
+- 暴露本地 MCP 查询工具，供个人自动化使用。
+- 为下游项目（比如个人减脂顾问）提供一份可复用的连接器实现。
 
-It deliberately does **not** provide medical advice, weight-loss coaching, hosted account access, or a multi-user cloud service.
+它刻意**不**提供医疗建议、减肥指导、托管式账号访问或多用户云服务。
 
-## Why this bridge?
+## 为什么做这个桥接器？
 
-| Before | After |
+| 之前 | 之后 |
 |---|---|
-| Your health history lives only inside the Mi Fitness app; the only way to "export" it is screenshots. | `mi-fitness-bridge sync` pulls daily activity, sleep, workouts, body measurements, heart rate, SpO2, and stress into a normalized local SQLite database. |
-| Answering "how did I sleep last month?" means scrolling the app day by day. | `mi-fitness-bridge export --format csv --type sleep --start-date ... --end-date ...` writes a spreadsheet-ready CSV filtered to exactly that range. |
-| Giving an AI assistant access to your health data means handing credentials to a hosted service. | `mi-fitness-bridge serve` exposes local MCP query tools over your own database; the passToken stays in the OS keyring and exports never contain it. |
+| 你的健康历史只存在于小米运动健康 App 里，唯一的"导出"方式是截图。 | `mi-fitness-bridge sync` 把每日活动、睡眠、运动、身体测量、心率、血氧（SpO2）和压力拉进一个规范化的本地 SQLite 数据库。 |
+| 想回答"我上个月睡得怎么样"，得在 App 里一天天往回翻。 | `mi-fitness-bridge export --format csv --type sleep --start-date ... --end-date ...` 输出一个精确按该区间过滤、可直接用表格软件打开的 CSV。 |
+| 想让 AI 助手访问你的健康数据，就得把凭据交给某个托管服务。 | `mi-fitness-bridge serve` 基于你自己的数据库暴露本地 MCP 查询工具；passToken 留在操作系统钥匙串里，导出文件中永远不会包含它。 |
 
-## Supported datasets
+## 支持的数据集
 
-- Daily activity: steps, distance, active calories and active minutes.
-- Sleep sessions and stages.
-- Workouts.
-- Body measurements: weight and available body-composition fields.
-- Heart-rate samples, including resting heart rate when available.
-- SpO2, stress, and abnormal-heart-beat events when available for the account/device.
+- 每日活动：步数、距离、活动热量和活动分钟数。
+- 睡眠记录及睡眠阶段。
+- 运动记录。
+- 身体测量：体重及可用的身体成分字段。
+- 心率样本，包括可用时的静息心率。
+- 血氧（SpO2）、压力和异常心跳事件（取决于账号/设备是否提供）。
 
-Availability varies by device, account region, firmware, and Xiaomi's upstream service.
+实际可用性因设备、账号地区、固件和小米上游服务而异。
 
-## Install
+## 安装
 
 ```bash
 git clone https://github.com/shkyyy18/mi-fitness-data-bridge.git mi_fitness_data_bridge
@@ -104,59 +102,59 @@ cd mi_fitness_data_bridge
 python -m venv .venv
 ```
 
-Windows PowerShell:
+Windows PowerShell：
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 ```
 
-macOS/Linux:
+macOS/Linux：
 
 ```bash
 source .venv/bin/activate
 pip install -e '.[dev]'
 ```
 
-## Configure
+## 配置
 
-The safer interactive path avoids putting the passToken directly into shell history:
+更安全的交互式配置路径可以避免把 passToken 直接写进 shell 历史：
 
 ```bash
 mi-fitness-bridge setup
 mi-fitness-bridge doctor
 ```
 
-Credentials are stored through the local keyring when available. Some fallback keyring implementations may store secrets less securely; review your operating system's keyring behavior before use.
+在可用时，凭据通过本地钥匙串（keyring）存储。某些备用的 keyring 实现存储密钥的方式可能不够安全，使用前请先了解你操作系统的 keyring 行为。
 
-## Sync
+## 同步
 
 ```bash
 mi-fitness-bridge sync --start-date 2026-07-01 --end-date 2026-07-15
 ```
 
-Or sync one dataset:
+或者只同步某一个数据集：
 
 ```bash
 mi-fitness-bridge sync --type sleep --start-date 2026-07-01 --end-date 2026-07-15
 mi-fitness-bridge sync --type body_measurements --start-date 2026-07-01 --end-date 2026-07-15
 ```
 
-## Export
+## 导出
 
-Create one portable JSON file:
+生成一个便携式 JSON 文件：
 
 ```bash
 mi-fitness-bridge export --format json --output exports/mi_fitness.json
 ```
 
-Create one CSV file per dataset:
+每个数据集各生成一个 CSV 文件：
 
 ```bash
 mi-fitness-bridge export --format csv --output exports/csv
 ```
 
-Filter by dataset and date:
+按数据集和日期过滤：
 
 ```bash
 mi-fitness-bridge export --format json --type sleep \
@@ -164,13 +162,13 @@ mi-fitness-bridge export --format json --type sleep \
   --output exports/sleep.json
 ```
 
-Exports never contain the saved Xiaomi passToken. Exported health records are still sensitive personal data and are ignored by Git by default.
+导出文件永远不会包含已保存的小米 passToken。导出的健康记录仍然是敏感的个人数据，默认已被 Git 忽略。
 
-See [Export format](docs/export-format.md) for the JSON envelope, CSV layout, and inclusive date filtering rules.
+导出格式说明（JSON 信封结构、CSV 布局、闭区间日期筛选规则）见 [Export format](docs/export-format.md)。
 
-## MCP server
+## MCP 服务
 
-The compatibility command remains available:
+兼容命令仍然可用：
 
 ```bash
 mi-fitness-bridge serve
@@ -178,29 +176,29 @@ mi-fitness-bridge serve
 mi-fitness-mcp serve
 ```
 
-Available tools include connection status, synchronization, coverage, daily summaries, body measurements, sleep, workouts, heart rate, SpO2, and stress queries.
+可用的工具包括连接状态、同步、覆盖范围、每日摘要、身体测量、睡眠、运动、心率、血氧（SpO2）和压力查询，以及面向 agent 的 `workout_series` 运动时序工具——按 `max_points` 硬上限自动降采样（固定时间桶均值，SQLite 内聚合），并在响应中如实标注 `downsampled`、`source_points`、`returned_points`、`method`，同时给出全精度统计（avg/min/max/分位数）与心率区间时间。`query_workouts`、`get_daily_summary` 等列表/汇总工具附带 `data_quality`（覆盖天数、缺失指标、最后同步时间）。
 
-## Use as a Python dependency
+## 作为 Python 依赖使用
 
-The normalized adapter remains available under the compatibility module name:
+规范化适配器在兼容模块名下仍然可用：
 
 ```python
 from mi_fitness_mcp.adapters.mi_fitness_cloud import MiFitnessCloudAdapter
 ```
 
-Downstream projects should install this package rather than vendor or copy the connector source.
+下游项目应当安装本包，而不是 vendor 或复制连接器源码。
 
-## Privacy and safety
+## 隐私与安全
 
-- Keep passTokens, local databases, exports, and logs private.
-- Do not run the bridge as a public credential proxy.
-- Do not commit real health data or screenshots containing personal metrics.
-- Use synthetic data in bug reports and documentation.
-- This software is for personal data access and engineering research, not diagnosis or treatment.
+- 妥善保管 passToken、本地数据库、导出文件和日志，不要外泄。
+- 不要把本桥接器当作公开的凭据代理来运行。
+- 不要提交真实健康数据或包含个人指标的截图。
+- 在 bug 报告和文档中一律使用合成数据。
+- 本软件仅用于个人数据访问和工程研究，不用于诊断或治疗。
 
-See `SECURITY.md` for responsible reporting and `THIRD_PARTY_NOTICES.md` for provenance.
+负责任披露方式见 `SECURITY.md`，出处溯源见 `THIRD_PARTY_NOTICES.md`。
 
-## Development
+## 开发
 
 ```bash
 pip install -e '.[dev]'
@@ -208,25 +206,10 @@ python -m pytest -q -p no:cacheprovider
 python -m ruff check src tests
 ```
 
-## Release
+## 发布
 
-See `CHANGELOG.md` for version history and `docs/release-checklist.md` for the publication and post-release checks.
+版本历史见 `CHANGELOG.md`，发布及发布后检查项见 `docs/release-checklist.md`。
 
-## Traction so far
+## 支持这个项目
 
-This is a young, single-maintainer project, and we would rather show real numbers than polish:
-
-- **Stars:** 1 — currently the only star across the maintainer's entire GitHub account, and it is on this repository. If this bridge is useful to you, your star genuinely stands out.
-- **Traffic (GitHub insights, 14 days ending 2026-07-25):** 36 unique cloners, 2 unique visitors.
-- **External contributions:** none yet — no outside pull requests or issues have arrived. The queue is open and curated; see the [good first issues](https://github.com/shkyyy18/mi-fitness-data-bridge/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
-- **Test suite:** 19 tests pass locally (`python -m pytest -q -p no:cacheprovider`), verified 2026-07-28 with Python 3.14 on Windows.
-
-The maintainer's sibling project [AgentCron](https://github.com/shkyyy18/cc-autopilot) received its first three external pull requests through exactly this kind of good-first-issue queue; the [first-contribution case study](https://github.com/shkyyy18/cc-autopilot/blob/main/docs/first-contribution-case-study.md) documents what made those tasks approachable. The same design is applied here: small scope, written acceptance criteria, offline-verifiable with synthetic data, and no real health data ever required.
-
-## Support the project
-
-If this bridge finally let you do something with your own Mi Fitness data — a chart, a backup, an MCP-powered query — a star on [GitHub](https://github.com/shkyyy18/mi-fitness-data-bridge) helps the next person who wants their own data back find it. And if you have ten minutes, a good first issue is the fastest way to make the bridge better.
-
-## License
-
-MIT. See `LICENSE`. Upstream attribution is preserved in `THIRD_PARTY_NOTICES.md`.
+如果这个工具帮到了你，在 [GitHub](https://github.com/shkyyy18/mi-fitness-data-bridge) 上帮我点个 star 吧。

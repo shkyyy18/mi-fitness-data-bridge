@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Agent-safe `workout_series` MCP tool: auto-downsamples workout time series under a hard `max_points` cap (default 400, max 500) using fixed time-bucket means aggregated in SQLite, reports honest `downsampled`/`source_points`/`returned_points`/`method` metadata, and always includes full-resolution stats (avg/min/max/quantiles) and heart-rate time-in-zone.
+- `data_quality` field (coverage days, missing metrics, last sync time) on `query_workouts` and `get_daily_summary` responses.
+- Synthetic 3-hour ride fixture (10,800 1 Hz heart-rate points with known ground-truth stats) and regression tests for the downsampling pipeline.
+
 ### Changed
 
 - Hide passToken entry in the interactive setup flow.

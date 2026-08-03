@@ -483,6 +483,48 @@ class Database:
             conn.commit()
             return cursor.rowcount > 0
 
+    def insert_heart_rate_samples(self, samples: list[HeartRateSample]) -> int:
+        """Bulk insert or update heart rate samples in a single transaction.
+
+        Returns:
+            Number of samples written
+        """
+        rows = [
+            (
+                sample.id,
+                sample.provider,
+                sample.source_type,
+                sample.source_record_id,
+                sample.user_id,
+                sample.device_id,
+                sample.timezone,
+                sample.collected_at.isoformat() if sample.collected_at else None,
+                sample.timestamp.isoformat(),
+                sample.bpm,
+                sample.sample_type,
+            )
+            for sample in samples
+        ]
+        with self._get_connection() as conn:
+            conn.executemany(
+                """
+                INSERT INTO heart_rate_samples (
+                    id, provider, source_type, source_record_id, user_id, device_id,
+                    timezone, collected_at, timestamp, bpm, sample_type
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id) DO UPDATE SET
+                    timezone = excluded.timezone,
+                    collected_at = excluded.collected_at,
+                    timestamp = excluded.timestamp,
+                    bpm = excluded.bpm,
+                    sample_type = excluded.sample_type,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                rows,
+            )
+            conn.commit()
+            return len(rows)
+
     def insert_spo2_sample(self, sample: SpO2Sample) -> bool:
         with self._get_connection() as conn:
             cursor = conn.execute(
@@ -659,6 +701,74 @@ class Database:
                 """,
                 (user_id, start_date, end_date),
             ).fetchall()
+            return [dict(row) for row in rows]
+
+    def get_workout(self, user_id: str, workout_id: str) -> dict[str, Any] | None:
+        """Get a single workout by its provider workout_id."""
+        with self._get_connection() as conn:
+            row = conn.execute(
+                """
+                SELECT * FROM workouts
+                WHERE user_id = ? AND workout_id = ?
+                """,
+                (user_id, workout_id),
+            ).fetchone()
+            return dict(row) if row else None
+
+    def query_heart_rate_samples_range(
+        self,
+        user_id: str,
+        start_at: str,
+        end_at: str,
+        sample_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Query heart rate samples inside an exact timestamp window (ISO strings)."""
+        sql = """
+            SELECT * FROM heart_rate_samples
+            WHERE user_id = ? AND timestamp >= ? AND timestamp <= ?
+        """
+        params: list[Any] = [user_id, start_at, end_at]
+        if sample_type:
+            sql += " AND sample_type = ?"
+            params.append(sample_type)
+        sql += " ORDER BY timestamp"
+        with self._get_connection() as conn:
+            rows = conn.execute(sql, params).fetchall()
+            return [dict(row) for row in rows]
+
+    def query_heart_rate_buckets(
+        self,
+        user_id: str,
+        start_at: str,
+        end_at: str,
+        bucket_seconds: int,
+        sample_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Aggregate heart rate samples into fixed time buckets in SQLite.
+
+        Returns one row per bucket with avg/min/max bpm and the raw sample count,
+        so callers do not need to load the full-resolution series.
+        """
+        sql = """
+            SELECT
+                datetime(
+                    unixepoch(?) + CAST((unixepoch(timestamp) - unixepoch(?)) / ? AS INTEGER) * ?,
+                    'unixepoch'
+                ) AS bucket_start,
+                AVG(bpm) AS avg_bpm,
+                MIN(bpm) AS min_bpm,
+                MAX(bpm) AS max_bpm,
+                COUNT(*) AS sample_count
+            FROM heart_rate_samples
+            WHERE user_id = ? AND timestamp >= ? AND timestamp <= ?
+        """
+        params: list[Any] = [start_at, start_at, bucket_seconds, bucket_seconds, user_id, start_at, end_at]
+        if sample_type:
+            sql += " AND sample_type = ?"
+            params.append(sample_type)
+        sql += " GROUP BY bucket_start ORDER BY bucket_start"
+        with self._get_connection() as conn:
+            rows = conn.execute(sql, params).fetchall()
             return [dict(row) for row in rows]
 
     def query_body_measurements(
