@@ -47,10 +47,16 @@ def seed_synthetic_ride(
     user_id: str = SYNTHETIC_USER_ID,
     workout_id: str = SYNTHETIC_RIDE_WORKOUT_ID,
     duration_seconds: int = DEFAULT_DURATION_SECONDS,
+    head_gap_seconds: int = 0,
+    recorded_max_hr: bool = True,
 ) -> list[int]:
     """Seed a synthetic ride workout plus its 1 Hz heart rate samples.
 
-    Returns the ground-truth bpm list for assertions.
+    ``head_gap_seconds`` drops that many leading samples while keeping the
+    workout row's full nominal duration, simulating sensor data missing at the
+    start of the activity. ``recorded_max_hr=False`` leaves the workout row
+    without a recorded max heart rate. Returns the ground-truth bpm list for
+    assertions (the full profile, including any dropped head samples).
     """
     bpms = synthetic_ride_bpms(duration_seconds)
     base = {"provider": "mi_fitness", "source_type": "cloud_session", "user_id": user_id}
@@ -68,7 +74,7 @@ def seed_synthetic_ride(
             distance_m=duration_seconds * 8.5,  # ~30.6 km/h synthetic pace
             calories_kcal=duration_seconds * 0.2,
             avg_heart_rate_bpm=round(sum(bpms) / len(bpms)),
-            max_heart_rate_bpm=max(bpms),
+            max_heart_rate_bpm=max(bpms) if recorded_max_hr else None,
             **base,
         )
     )
@@ -82,6 +88,7 @@ def seed_synthetic_ride(
                 **base,
             )
             for i, bpm in enumerate(bpms)
+            if i >= head_gap_seconds
         ]
     )
     return bpms

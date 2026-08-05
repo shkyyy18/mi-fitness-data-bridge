@@ -64,6 +64,7 @@ def test_downsampled_series_metadata_and_stats(service, seeded_db):
     assert stats["min"] == min(bpms)
     assert stats["max"] == max(bpms)
     assert stats["p25"] <= stats["p50"] <= stats["p75"]
+    assert stats["percentile_method"] == "linear_interpolation"
 
     # Bucket means stay faithful to the raw average.
     bucket_avg = statistics.fmean(p["value"] for p in result["points"])
@@ -74,6 +75,33 @@ def test_downsampled_series_metadata_and_stats(service, seeded_db):
     zones = result["time_in_zone"]["zones"]
     assert [z["seconds"] for z in zones] == truth
     assert sum(z["seconds"] for z in zones) == len(bpms)
+
+
+def test_agent_safe_series_v1_envelope(service):
+    result = service.get_workout_series(SYNTHETIC_RIDE_WORKOUT_ID)
+
+    assert result["contract_version"] == "agent-safe-series/v1"
+    assert result["start_time"] == "2026-07-15T08:00:00"
+    assert result["t_unit"] == "seconds_from_start"
+    assert result["unit"] == "bpm"
+    assert result["requested_resolution_seconds"] == 60
+    assert result["resolution_seconds"] >= result["requested_resolution_seconds"]
+
+    # points[].t are numeric offsets from start_time, sorted and in range.
+    offsets = [p["t"] for p in result["points"]]
+    assert all(isinstance(t, int) for t in offsets)
+    assert offsets == sorted(offsets)
+    assert 0 <= offsets[0] <= offsets[-1] < result["duration_seconds"]
+
+    quality = result["data_quality"]
+    assert quality["actual_samples"] == 10_800
+    assert quality["expected_samples"] == 10_800
+    assert quality["sample_interval_seconds"] == 1.0
+    assert quality["coverage_ratio"] == 1.0
+    assert quality["coverage_anchor"] == "nominal_duration"
+
+    tiz = result["time_in_zone"]
+    assert tiz["reference_source"] == "activity_recorded_max"
 
 
 def test_max_points_is_hard_capped(service):
@@ -110,6 +138,7 @@ def test_short_workout_is_returned_at_full_resolution(tmp_path):
     assert result["source_points"] == 300
     assert result["returned_points"] == 300
     assert [p["value"] for p in result["points"]] == bpms
+    assert [p["t"] for p in result["points"]] == list(range(300))
 
 
 def test_unknown_workout_raises(service):
@@ -120,6 +149,50 @@ def test_unknown_workout_raises(service):
 def test_unsupported_metric_raises(service):
     with pytest.raises(ValueError, match="Unsupported workout metric"):
         service.get_workout_series(SYNTHETIC_RIDE_WORKOUT_ID, metric="power")
+
+
+def test_invalid_reference_max_hr_raises(service):
+    with pytest.raises(ValueError, match="reference_max_hr"):
+        service.get_workout_series(SYNTHETIC_RIDE_WORKOUT_ID, reference_max_hr=0)
+
+
+def test_head_missing_data_lowers_coverage(tmp_path):
+    """Samples missing at the start must show as coverage < 1.0, not a shorter workout."""
+    db = Database(tmp_path / "synthetic.db")
+    seed_synthetic_ride(db, head_gap_seconds=1200)  # first 20 min missing
+    service = QueryService(db, SYNTHETIC_USER_ID)
+
+    result = service.get_workout_series(SYNTHETIC_RIDE_WORKOUT_ID)
+    quality = result["data_quality"]
+    assert quality["coverage_anchor"] == "nominal_duration"
+    assert quality["expected_samples"] == 10_800
+    assert quality["actual_samples"] == 9_600
+    assert quality["coverage_ratio"] == pytest.approx(0.889, abs=0.001)
+    assert quality["coverage_ratio"] < 1.0
+    # First returned point starts ~20 min into the activity.
+    assert result["points"][0]["t"] >= 1200
+
+
+def test_reference_source_observed_max_when_not_recorded(tmp_path):
+    db = Database(tmp_path / "synthetic.db")
+    bpms = seed_synthetic_ride(
+        db, workout_id="synthetic-ride-no-max", recorded_max_hr=False
+    )
+    service = QueryService(db, SYNTHETIC_USER_ID)
+
+    tiz = service.get_workout_series("synthetic-ride-no-max")["time_in_zone"]
+    assert tiz["reference_source"] == "observed_max"
+    assert tiz["reference_max_bpm"] == max(bpms)
+
+
+def test_reference_source_caller_provided(service, seeded_db):
+    _, bpms = seeded_db
+    result = service.get_workout_series(SYNTHETIC_RIDE_WORKOUT_ID, reference_max_hr=190)
+    tiz = result["time_in_zone"]
+    assert tiz["reference_source"] == "caller_provided"
+    assert tiz["reference_max_bpm"] == 190
+    # Caller-provided reference changes zone bounds but not total seconds.
+    assert sum(z["seconds"] for z in tiz["zones"]) == len(bpms)
 
 
 def test_server_tool_roundtrip(service, monkeypatch):
@@ -139,6 +212,19 @@ def test_server_tool_roundtrip(service, monkeypatch):
     assert data["source_points"] == 10_800
     assert data["returned_points"] <= 400
     assert data["method"] == "time_bucket_mean"
+    assert data["contract_version"] == "agent-safe-series/v1"
+    assert data["t_unit"] == "seconds_from_start"
+    assert isinstance(data["points"][0]["t"], int)
+
+    content = asyncio.run(
+        server.call_tool(
+            "workout_series",
+            {"workout_id": SYNTHETIC_RIDE_WORKOUT_ID, "reference_max_hr": 195},
+        )
+    )
+    data = json.loads(content[0].text)["data"]
+    assert data["time_in_zone"]["reference_source"] == "caller_provided"
+    assert data["time_in_zone"]["reference_max_bpm"] == 195
 
     error = asyncio.run(server.call_tool("workout_series", {"workout_id": "missing"}))
     assert json.loads(error[0].text)["status"] == "error"

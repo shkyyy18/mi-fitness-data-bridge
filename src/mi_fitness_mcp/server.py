@@ -187,9 +187,15 @@ async def list_tools() -> list[Tool]:
         Tool(
             name="workout_series",
             description=(
-                "Get an agent-safe, auto-downsampled time series for a workout metric. "
-                "Always reports downsampled/source_points/returned_points/method plus "
-                "full-resolution summary stats; never returns more than max_points points."
+                "Get an agent-safe, auto-downsampled time series for a workout metric "
+                "(contract agent-safe-series/v1). Points carry numeric t offsets in "
+                "seconds from start_time. Always reports "
+                "downsampled/source_points/returned_points/method plus full-resolution "
+                "summary stats; never returns more than max_points points. "
+                "For cross-activity comparison of time_in_zone, pass reference_max_hr "
+                "(e.g. the athlete's known max HR); otherwise each activity is "
+                "normalized to its own max and zone distributions are not comparable "
+                "across activities."
             ),
             inputSchema={
                 "type": "object",
@@ -213,6 +219,14 @@ async def list_tools() -> list[Tool]:
                         "default": 400,
                         "maximum": 500,
                         "description": "Hard cap on returned points (server-enforced)",
+                    },
+                    "reference_max_hr": {
+                        "type": "integer",
+                        "description": (
+                            "Optional caller-provided reference max heart rate (bpm) "
+                            "used to normalize time_in_zone; pass a consistent value "
+                            "when comparing zone distributions across activities"
+                        ),
                     },
                 },
                 "required": ["workout_id"],
@@ -640,6 +654,7 @@ async def _handle_workout_series(arguments: dict) -> dict:
             metric=arguments.get("metric", "heart_rate"),
             resolution=arguments.get("resolution", 60),
             max_points=arguments.get("max_points", 400),
+            reference_max_hr=arguments.get("reference_max_hr"),
         )
     except ValueError as exc:
         return {"status": "error", "error": str(exc)}

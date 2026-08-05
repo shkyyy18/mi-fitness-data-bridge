@@ -249,16 +249,23 @@ class QueryService:
         metric: str = "heart_rate",
         resolution: int = DEFAULT_RESOLUTION_SECONDS,
         max_points: int = DEFAULT_MAX_POINTS,
+        reference_max_hr: int | None = None,
     ) -> dict[str, Any]:
         """Get an agent-safe time series for one workout metric.
 
-        The full-resolution series is never returned raw when it exceeds
-        ``max_points``; instead it is downsampled into fixed time buckets whose
-        mean (plus per-bucket min/max) is computed in SQLite. The payload always
-        states whether downsampling happened, which method was used, and how
-        many source points it represents, so agents never mistake a downsampled
-        series for full precision. Summary statistics and time-in-zone are
-        always computed on the full-resolution samples.
+        Contract: ``agent-safe-series/v1``. Points carry numeric ``t`` offsets
+        in seconds from ``start_time`` (never raw ISO strings), and the payload
+        always states whether downsampling happened, which method was used, and
+        how many source points it represents, so agents never mistake a
+        downsampled series for full precision. Summary statistics and
+        time-in-zone are always computed on the full-resolution samples.
+
+        Coverage is anchored on the activity's nominal duration (from the
+        workout row), so data missing at the start or end of an activity shows
+        up as ``coverage_ratio < 1.0`` instead of looking like a shorter,
+        fully-sampled workout. If no nominal duration is recorded, coverage
+        falls back to the first-to-last sample span and ``coverage_anchor``
+        says so.
 
         Raises:
             ValueError: if the metric is unsupported or the workout is unknown
@@ -267,6 +274,8 @@ class QueryService:
             raise ValueError(f"Unsupported workout metric: {metric}")
         if resolution < 1:
             raise ValueError("resolution must be at least 1 second")
+        if reference_max_hr is not None and reference_max_hr < 1:
+            raise ValueError("reference_max_hr must be a positive integer")
         max_points = max(1, min(int(max_points), HARD_MAX_POINTS))
 
         workout = self.db.get_workout(self.user_id, workout_id)
@@ -298,9 +307,13 @@ class QueryService:
                 "activity_type": workout["activity_type"],
                 "metric": metric,
                 "unit": "bpm",
+                "contract_version": "agent-safe-series/v1",
+                "start_time": start_at,
+                "t_unit": "seconds_from_start",
                 "start_at": start_at,
                 "end_at": end_at,
                 "duration_seconds": duration_seconds,
+                "requested_resolution_seconds": resolution,
                 "resolution_seconds": resolution,
                 "points": [],
                 "stats": None,
@@ -312,7 +325,10 @@ class QueryService:
                 "data_quality": {
                     "sample_type": sample_type,
                     "expected_samples": 0,
+                    "actual_samples": 0,
+                    "sample_interval_seconds": None,
                     "coverage_ratio": 0.0,
+                    "coverage_anchor": "nominal_duration",
                     "longest_gap_seconds": duration_seconds,
                     "missing_metrics": [metric],
                 },
@@ -337,7 +353,11 @@ class QueryService:
             )
             points = [
                 {
-                    "t": str(b["bucket_start"]).replace(" ", "T"),
+                    "t": int(
+                        (
+                            datetime.fromisoformat(str(b["bucket_start"])) - start_dt
+                        ).total_seconds()
+                    ),
                     "value": round(b["avg_bpm"], 1),
                     "min": b["min_bpm"],
                     "max": b["max_bpm"],
@@ -349,7 +369,12 @@ class QueryService:
         else:
             bucket_seconds = resolution
             points = [
-                {"t": s["timestamp"], "value": int(s["bpm"])}
+                {
+                    "t": int(
+                        (datetime.fromisoformat(s["timestamp"]) - start_dt).total_seconds()
+                    ),
+                    "value": int(s["bpm"]),
+                }
                 for s in samples
             ]
             method = "none"
@@ -362,9 +387,19 @@ class QueryService:
             "p25": round(quartiles[0], 1),
             "p50": round(quartiles[1], 1),
             "p75": round(quartiles[2], 1),
+            # statistics.quantiles(method="inclusive") is linear interpolation.
+            "percentile_method": "linear_interpolation",
         }
 
-        reference_max = workout.get("max_heart_rate_bpm") or max(bpms)
+        if reference_max_hr is not None:
+            reference_max = int(reference_max_hr)
+            reference_source = "caller_provided"
+        elif workout.get("max_heart_rate_bpm"):
+            reference_max = int(workout["max_heart_rate_bpm"])
+            reference_source = "activity_recorded_max"
+        else:
+            reference_max = max(bpms)
+            reference_source = "observed_max"
         bounds = [int(reference_max * f) for f in ZONE_FRACTIONS]
         zone_seconds = [0.0] * (len(bounds) + 1)
         for bpm in bpms:
@@ -373,6 +408,7 @@ class QueryService:
         time_in_zone = {
             "zone_model": "percent_of_reference_max_hr",
             "reference_max_bpm": reference_max,
+            "reference_source": reference_source,
             "zones": [
                 {
                     "zone": i + 1,
@@ -384,15 +420,37 @@ class QueryService:
             ],
         }
 
-        expected_samples = duration_seconds / median_interval if median_interval else 0
+        # Anchor coverage on the nominal activity duration recorded on the
+        # workout row (duration_minutes, else start/end), so samples missing at
+        # the head or tail of the activity surface as coverage_ratio < 1.0.
+        # Fall back to the first-to-last sample span only when the workout row
+        # carries no usable duration.
+        nominal_seconds = 0
+        if workout.get("duration_minutes"):
+            nominal_seconds = int(workout["duration_minutes"]) * 60
+        elif end_dt > start_dt:
+            nominal_seconds = int((end_dt - start_dt).total_seconds())
+
+        if nominal_seconds > 0:
+            expected_samples = nominal_seconds / median_interval if median_interval else 0
+            coverage_anchor = "nominal_duration"
+        else:
+            sample_span = (timestamps[-1] - timestamps[0]).total_seconds() + median_interval
+            expected_samples = sample_span / median_interval if median_interval else 0
+            coverage_anchor = "sample_span"
+
         return {
             "workout_id": workout_id,
             "activity_type": workout["activity_type"],
             "metric": metric,
             "unit": "bpm",
+            "contract_version": "agent-safe-series/v1",
+            "start_time": start_at,
+            "t_unit": "seconds_from_start",
             "start_at": start_at,
             "end_at": end_at,
             "duration_seconds": duration_seconds,
+            "requested_resolution_seconds": resolution,
             "resolution_seconds": bucket_seconds,
             "points": points,
             "stats": stats,
@@ -404,9 +462,12 @@ class QueryService:
             "data_quality": {
                 "sample_type": sample_type,
                 "expected_samples": round(expected_samples),
+                "actual_samples": source_points,
+                "sample_interval_seconds": round(median_interval, 3),
                 "coverage_ratio": round(min(1.0, source_points / expected_samples), 3)
                 if expected_samples
                 else 0.0,
+                "coverage_anchor": coverage_anchor,
                 "longest_gap_seconds": round(longest_gap),
                 "missing_metrics": [],
             },
