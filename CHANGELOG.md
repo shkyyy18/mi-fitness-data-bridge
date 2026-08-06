@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - `workout_series` contract `agent-safe-series/v1`: top-level `start_time`, `t_unit` (`seconds_from_start`), `unit`, `contract_version`, and `requested_resolution_seconds` (alongside the effective `resolution_seconds`); `stats.percentile_method` (`linear_interpolation`); `time_in_zone.reference_source` (`activity_recorded_max` / `observed_max` / `caller_provided`); `data_quality.actual_samples`, `data_quality.sample_interval_seconds`, and `data_quality.coverage_anchor`.
 - Optional `reference_max_hr` input on `workout_series` so agents can normalize time-in-zone against a consistent reference when comparing activities.
 - Duration-anchored coverage in `workout_series`: `expected_samples` is computed from the activity's nominal duration (workout `duration_minutes`, else the recorded start/end), so samples missing at the start or end of an activity surface as `coverage_ratio < 1.0` instead of looking like a shorter, fully-sampled workout; falls back to the first-to-last sample span (`coverage_anchor: "sample_span"`) when no nominal duration is recorded.
+- Garmin-layout counterpart of the synthetic 3-hour ride fixture (`tests/garmin_fixtures.py`, `metricDescriptors`/`activityDetailMetrics` shape) plus cross-format regression tests proving both layouts yield identical stats and downsampled points, including a sensor-gap scenario (garmin-mcp issue #19).
 
 ### Changed
 
