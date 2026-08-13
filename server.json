@@ -1,0 +1,11 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.shkyyy18/mi-fitness-data-bridge",
+  "title": "Mi Fitness Data Bridge",
+  "description": "Local-first bridge that exports your own Mi Fitness (Xiaomi) health data to a local SQLite database, portable JSON/CSV, and local MCP query tools. Unofficial, experimental cloud adapter; credentials stay in the OS keyring.",
+  "version": "0.3.0",
+  "repository": {
+    "url": "https://github.com/shkyyy18/mi-fitness-data-bridge",
+    "source": "github"
+  }
+}
