@@ -130,7 +130,11 @@ class MiFitnessCloudAdapter(DataAdapter):
                 self._connected = False
                 return False
             await self._close_client()
-            self._client = httpx.AsyncClient(timeout=self.http_timeout, follow_redirects=False)
+            # 小米云是国内服务，永远直连：trust_env=False 让 httpx 忽略系统代理，
+            # 避免 Windows 系统代理假死（代理进程退出但设置残留）时同步链路整体断连。
+            self._client = httpx.AsyncClient(
+                timeout=self.http_timeout, follow_redirects=False, trust_env=False
+            )
             try:
                 await self._login_with_token(self.user_id, self.pass_token)
                 # Trust an explicitly configured region. Expensive cross-region discovery
