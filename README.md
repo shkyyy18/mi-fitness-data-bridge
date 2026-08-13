@@ -210,6 +210,10 @@ python -m ruff check src tests
 
 版本历史见 `CHANGELOG.md`，发布及发布后检查项见 `docs/release-checklist.md`。
 
+## 相关项目
+
+- [garmin-mcp](https://github.com/davidmosiah/garmin-mcp) —— 本地优先的 Garmin 数据 MCP 服务。与本项目共享 `agent-safe-series/v1` 数据契约（时间序列降采样字段语义逐字节对齐），同一个 AI agent 可以无缝消费两个服务的数据。
+
 ## 支持这个项目
 
 如果这个工具帮到了你，在 [GitHub](https://github.com/shkyyy18/mi-fitness-data-bridge) 上帮我点个 star 吧。

@@ -225,6 +225,10 @@ This is a young, single-maintainer project, and we would rather show real number
 
 The maintainer's sibling project [AgentCron](https://github.com/shkyyy18/cc-autopilot) received its first three external pull requests through exactly this kind of good-first-issue queue; the [first-contribution case study](https://github.com/shkyyy18/cc-autopilot/blob/main/docs/first-contribution-case-study.md) documents what made those tasks approachable. The same design is applied here: small scope, written acceptance criteria, offline-verifiable with synthetic data, and no real health data ever required.
 
+## Related projects
+
+- [garmin-mcp](https://github.com/davidmosiah/garmin-mcp) — local-first MCP server for Garmin data. Shares the `agent-safe-series/v1` contract with this project (field-for-field aligned downsampled time series), so one agent can consume both servers without special-casing.
+
 ## Support the project
 
 If this bridge finally let you do something with your own Mi Fitness data — a chart, a backup, an MCP-powered query — a star on [GitHub](https://github.com/shkyyy18/mi-fitness-data-bridge) helps the next person who wants their own data back find it. And if you have ten minutes, a good first issue is the fastest way to make the bridge better.
