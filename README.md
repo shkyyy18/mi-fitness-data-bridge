@@ -12,14 +12,14 @@
 
 ## 实测验证
 
-2026-07-20 在 Windows（Python 3.14）上基于 `main` 分支的提交录制。所有数据均为合成数据，不涉及任何凭据或网络访问。（测试数量已于 2026-07-29 复核更新。）
+2026-07-20 在 Windows（Python 3.14）上基于 `main` 分支的提交录制。所有数据均为合成数据，不涉及任何凭据或网络访问。（测试数量已于 2026-08-13 复核更新。）
 
 测试套件：
 
 ```text
 $ python -m pytest -q -p no:cacheprovider
-...................                                                      [100%]
-19 passed in 6.43s
+..............................................                       [100%]
+46 passed in 7.21s
 ```
 
 端到端合成演示（`examples/synthetic_demo.py` 先用合成记录填充本地 SQLite 缓存，再跑真实的 JSON/CSV 导出流水线）：
@@ -109,6 +109,13 @@ Windows PowerShell：
 pip install -e ".[dev]"
 ```
 
+Windows Git Bash：
+
+```bash
+source .venv/Scripts/activate
+pip install -e ".[dev]"
+```
+
 macOS/Linux：
 
 ```bash
@@ -127,6 +134,33 @@ mi-fitness-bridge doctor
 
 在可用时，凭据通过本地钥匙串（keyring）存储。某些备用的 keyring 实现存储密钥的方式可能不够安全，使用前请先了解你操作系统的 keyring 行为。
 
+### 如何获取 user_id 和 passToken
+
+本桥接器使用的是小米账号级凭据（与米家 App 同一套登录态），以下两种方式任选其一：
+
+**方式一：浏览器手动复制**
+
+1. 在浏览器打开 [account.xiaomi.com](https://account.xiaomi.com) 并登录你的小米账号（与小米运动健康 App 同一个账号）。
+2. 打开开发者工具（F12）→「应用 / Application」→ Cookies → `https://account.xiaomi.com`。
+3. 复制 `userId` 和 `passToken` 两个 Cookie 的值，在 `mi-fitness-bridge setup` 提示时粘贴。
+
+**方式二：扫码登录工具**
+
+用开源的 [mijia-api](https://github.com/Do1e/mijia-api) 扫码登录一次：
+
+```bash
+pip install mijiaAPI
+python -c "from mijiaAPI import mijiaAPI; mijiaAPI().login()"   # 终端出二维码，用米家 App 扫码
+```
+
+登录态默认保存在 `~/.config/mijia-api/auth.json`，其中的 `userId` 和 `passToken` 即可直接用于本桥接器——小米账号级凭据跨服务通用，桥接器会用它换取小米运动健康（`sid=miothealth`）的会话。
+
+注意：
+
+- passToken 会过期；`doctor` 报认证失败时按上面步骤重新获取一次即可。
+- Cookie 名称与登录流程基于 2026-08 的实测，可能因账号地区、设备或风控策略而异；小米也可能随时调整私有接口（见顶部实验性声明）。
+- 这两个值等同于你的账号登录态，请勿泄露，也请勿提交到 Git。
+
 ## 同步
 
 ```bash
@@ -138,6 +172,13 @@ mi-fitness-bridge sync --start-date 2026-07-01 --end-date 2026-07-15
 ```bash
 mi-fitness-bridge sync --type sleep --start-date 2026-07-01 --end-date 2026-07-15
 mi-fitness-bridge sync --type body_measurements --start-date 2026-07-01 --end-date 2026-07-15
+```
+
+数据库默认落在平台用户数据目录（platformdirs 决定）。`sync`、`export`、`serve`、`doctor` 都支持用 `--db` 参数或 `MI_FITNESS_DB_PATH` 环境变量换位置，优先级：命令行 > 环境变量 > 默认位置。注意 platformdirs 在 Windows 上不响应 `LOCALAPPDATA` 环境变量，要自定义路径请用上述两种方式：
+
+```bash
+mi-fitness-bridge sync --db ./data/mi_fitness.db --start-date 2026-07-01 --end-date 2026-07-15
+export MI_FITNESS_DB_PATH=./data/mi_fitness.db
 ```
 
 ## 导出
@@ -162,7 +203,7 @@ mi-fitness-bridge export --format json --type sleep \
   --output exports/sleep.json
 ```
 
-导出文件永远不会包含已保存的小米 passToken。导出的健康记录仍然是敏感的个人数据，默认已被 Git 忽略。
+导出文件永远不会包含已保存的小米 passToken，但会包含明文 `user_id` 等标识列——导出文件属于敏感个人数据，请妥善保管。导出的健康记录默认已被 Git 忽略。
 
 导出格式说明（JSON 信封结构、CSV 布局、闭区间日期筛选规则）见 [Export format](docs/export-format.md)。
 
@@ -191,6 +232,7 @@ from mi_fitness_mcp.adapters.mi_fitness_cloud import MiFitnessCloudAdapter
 ## 隐私与安全
 
 - 妥善保管 passToken、本地数据库、导出文件和日志，不要外泄。
+- 导出文件不含 passToken，但含明文 `user_id` 等标识列，同样属于敏感个人数据。
 - 不要把本桥接器当作公开的凭据代理来运行。
 - 不要提交真实健康数据或包含个人指标的截图。
 - 在 bug 报告和文档中一律使用合成数据。

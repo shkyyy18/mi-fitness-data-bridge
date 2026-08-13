@@ -22,8 +22,8 @@ Test suite:
 
 ```text
 $ python -m pytest -q -p no:cacheprovider
-...................                                                        [100%]
-19 passed in 6.43s
+..............................................                       [100%]
+46 passed in 7.21s
 ```
 
 End-to-end synthetic demo (`examples/synthetic_demo.py` seeds a local SQLite cache with synthetic records, then runs the real JSON/CSV export pipeline):
@@ -113,6 +113,13 @@ Windows PowerShell:
 pip install -e ".[dev]"
 ```
 
+Windows Git Bash:
+
+```bash
+source .venv/Scripts/activate
+pip install -e ".[dev]"
+```
+
 macOS/Linux:
 
 ```bash
@@ -131,6 +138,33 @@ mi-fitness-bridge doctor
 
 Credentials are stored through the local keyring when available. Some fallback keyring implementations may store secrets less securely; review your operating system's keyring behavior before use.
 
+### How to get user_id and passToken
+
+The bridge uses Xiaomi account-level credentials (the same login session as the Mi Home app). Pick one of the two methods:
+
+**Method 1: copy from a browser**
+
+1. Open [account.xiaomi.com](https://account.xiaomi.com) in a browser and sign in with the Xiaomi account used by your Mi Fitness app.
+2. Open the developer tools (F12) → Application → Cookies → `https://account.xiaomi.com`.
+3. Copy the values of the `userId` and `passToken` cookies and paste them when `mi-fitness-bridge setup` asks.
+
+**Method 2: QR-login tooling**
+
+Log in once by QR code with the open-source [mijia-api](https://github.com/Do1e/mijia-api):
+
+```bash
+pip install mijiaAPI
+python -c "from mijiaAPI import mijiaAPI; mijiaAPI().login()"   # shows a QR code; scan it with the Mi Home app
+```
+
+The session is saved to `~/.config/mijia-api/auth.json` by default; the `userId` and `passToken` in that file work directly with this bridge — account-level Xiaomi credentials work across services, and the adapter exchanges them for a Mi Fitness session (`sid=miothealth`).
+
+Notes:
+
+- The passToken expires; if `doctor` reports an authentication failure, simply fetch a fresh one with the steps above.
+- Cookie names and the login flow above were verified in 2026-08 and may vary by account region, device, or risk-control policy; Xiaomi can also change its private endpoints at any time (see the experimental notice at the top).
+- These two values are equivalent to your account login session. Never share them and never commit them to Git.
+
 ## Sync
 
 ```bash
@@ -142,6 +176,13 @@ Or sync one dataset:
 ```bash
 mi-fitness-bridge sync --type sleep --start-date 2026-07-01 --end-date 2026-07-15
 mi-fitness-bridge sync --type body_measurements --start-date 2026-07-01 --end-date 2026-07-15
+```
+
+The database lives in the platform user-data directory (chosen by platformdirs). `sync`, `export`, `serve`, and `doctor` all accept a `--db` option or the `MI_FITNESS_DB_PATH` environment variable; precedence is CLI option > environment variable > default location. Note that platformdirs does not honor `LOCALAPPDATA` on Windows — use one of these two overrides instead:
+
+```bash
+mi-fitness-bridge sync --db ./data/mi_fitness.db --start-date 2026-07-01 --end-date 2026-07-15
+export MI_FITNESS_DB_PATH=./data/mi_fitness.db
 ```
 
 ## Export
@@ -166,7 +207,7 @@ mi-fitness-bridge export --format json --type sleep \
   --output exports/sleep.json
 ```
 
-Exports never contain the saved Xiaomi passToken. Exported health records are still sensitive personal data and are ignored by Git by default.
+Exports never contain the saved Xiaomi passToken, but they do include plaintext identifier columns such as `user_id` — treat export files as sensitive personal data. Exported health records are ignored by Git by default.
 
 See [Export format](docs/export-format.md) for the JSON envelope, CSV layout, and inclusive date filtering rules.
 
@@ -195,6 +236,7 @@ Downstream projects should install this package rather than vendor or copy the c
 ## Privacy and safety
 
 - Keep passTokens, local databases, exports, and logs private.
+- Exports contain no passToken but do carry plaintext identifier columns such as `user_id`; they are sensitive personal data too.
 - Do not run the bridge as a public credential proxy.
 - Do not commit real health data or screenshots containing personal metrics.
 - Use synthetic data in bug reports and documentation.
@@ -221,7 +263,7 @@ This is a young, single-maintainer project, and we would rather show real number
 - **Stars:** 1 — currently the only star across the maintainer's entire GitHub account, and it is on this repository. If this bridge is useful to you, your star genuinely stands out.
 - **Traffic (GitHub insights, 14 days ending 2026-07-25):** 36 unique cloners, 2 unique visitors.
 - **External contributions:** none yet — no outside pull requests or issues have arrived. The queue is open and curated; see the [good first issues](https://github.com/shkyyy18/mi-fitness-data-bridge/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
-- **Test suite:** 19 tests pass locally (`python -m pytest -q -p no:cacheprovider`), verified 2026-07-28 with Python 3.14 on Windows.
+- **Test suite:** 46 tests pass locally (`python -m pytest -q -p no:cacheprovider`), verified 2026-08-13 with Python 3.14 on Windows.
 
 The maintainer's sibling project [AgentCron](https://github.com/shkyyy18/cc-autopilot) received its first three external pull requests through exactly this kind of good-first-issue queue; the [first-contribution case study](https://github.com/shkyyy18/cc-autopilot/blob/main/docs/first-contribution-case-study.md) documents what made those tasks approachable. The same design is applied here: small scope, written acceptance criteria, offline-verifiable with synthetic data, and no real health data ever required.
 

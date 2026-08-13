@@ -2,6 +2,8 @@
 
 The `mi-fitness-bridge export` command writes normalized records from the local SQLite cache without including saved Xiaomi credentials. Exports can be written as one JSON envelope or as one CSV file per selected dataset.
 
+> **Sensitive data:** exports never contain the Xiaomi passToken, but they do include plaintext identifier columns such as `user_id`. Treat every export file as sensitive personal data: store it somewhere private and do not commit or share it.
+
 ## JSON envelope
 
 JSON export writes a single file. If `--output` ends in `.json`, that path is used directly. Otherwise the exporter creates `mi_fitness_export.json` inside the output directory.
