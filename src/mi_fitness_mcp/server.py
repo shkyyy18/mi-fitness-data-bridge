@@ -5,6 +5,7 @@ import json
 import logging
 import uuid
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from mcp.server import Server
@@ -708,9 +709,12 @@ async def _handle_get_data_coverage(arguments: dict) -> dict:
     return QueryResponse(status="ok", source="cache", data={"coverage": coverage}).model_dump()
 
 
-async def main():
+async def main(db_path=None):
     global config, db, adapter, sync_service, query_service
     config = load_config()
+    if db_path is not None:
+        # Explicit CLI/--env override: serve strictly uses the given database.
+        config.database_path = Path(db_path)
     db = Database(config.database_path)
     if config.mode == "mi_fitness_cloud":
         user_id, pass_token = load_mi_fitness_token()

@@ -1,11 +1,14 @@
 """Configuration management for Mi Fitness MCP."""
 
 import json
+import os
 from pathlib import Path
 from typing import Literal
 
 from platformdirs import user_config_dir, user_data_dir, user_log_dir
 from pydantic import BaseModel, ConfigDict, Field
+
+ENV_DB_PATH = "MI_FITNESS_DB_PATH"
 
 
 def _default_database_path() -> Path:
@@ -37,21 +40,33 @@ class Config(BaseModel):
 
 
 def get_config_dir() -> Path:
-    config_dir = Path(user_config_dir("mi-fitness-mcp"))
-    config_dir.mkdir(parents=True, exist_ok=True)
-    return config_dir
+    # No mkdir here: reading configuration must not write to the user profile.
+    # save_config() creates the directory when the user explicitly runs setup.
+    return Path(user_config_dir("mi-fitness-mcp"))
 
 
 def get_config_path() -> Path:
     return get_config_dir() / "config.json"
 
 
+def resolve_database_path(cli_path: str | Path | None = None) -> Path | None:
+    """Resolve a database path override: CLI option beats the environment variable.
+
+    Returns None when neither is set, meaning the configured/default path applies.
+    """
+    if cli_path:
+        return Path(cli_path)
+    env_value = os.environ.get(ENV_DB_PATH)
+    if env_value:
+        return Path(env_value)
+    return None
+
+
 def load_config() -> Config:
     config_path = get_config_path()
     if not config_path.exists():
-        config = Config()
-        save_config(config)
-        return config
+        # Do not persist anything implicitly; setup is the only writer.
+        return Config()
 
     with open(config_path, encoding="utf-8") as f:
         data = json.load(f)

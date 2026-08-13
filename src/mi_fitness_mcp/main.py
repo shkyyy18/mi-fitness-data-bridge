@@ -7,7 +7,13 @@ import sys
 
 from mi_fitness_mcp.adapters.mi_fitness_cloud import MiFitnessCloudAdapter
 from mi_fitness_mcp.auth import load_mi_fitness_token, save_mi_fitness_token
-from mi_fitness_mcp.config import Config, get_config_path, load_config, save_config
+from mi_fitness_mcp.config import (
+    Config,
+    get_config_path,
+    load_config,
+    resolve_database_path,
+    save_config,
+)
 from mi_fitness_mcp.export import DATASETS, export_database
 from mi_fitness_mcp.server import main as server_main
 from mi_fitness_mcp.services.sync_service import SyncService
@@ -21,6 +27,14 @@ def _masked(value: str) -> str:
     if len(value) <= 4:
         return "****"
     return f"{value[:2]}***{value[-2:]}"
+
+
+def _apply_database_override(config: Config, args) -> Config:
+    """CLI --db beats MI_FITNESS_DB_PATH, which beats the configured/default path."""
+    override = resolve_database_path(getattr(args, "db", None))
+    if override is not None:
+        config.database_path = override
+    return config
 
 
 
@@ -91,11 +105,14 @@ def cmd_doctor(args):
     if not config_path.exists():
         print("❌ 未找到配置文件")
         print(f"   请运行： {PROGRAM_NAME} setup")
+        print("   user_id / passToken 的获取方法见 README「配置」一节的")
+        print("   「如何获取 user_id 和 passToken」（README.en.md → Configure →")
+        print("   “How to get user_id and passToken”）")
         sys.exit(1)
 
     healthy = True
     try:
-        config = load_config()
+        config = _apply_database_override(load_config(), args)
         print("✅ 配置已加载")
         print(f"   模式： {config.mode}")
         if config.mode == "not_configured":
@@ -144,7 +161,7 @@ async def cmd_sync_async(args):
     print()
 
     try:
-        config = load_config()
+        config = _apply_database_override(load_config(), args)
     except Exception as e:
         print(f"❌ 加载配置失败： {e}")
         sys.exit(1)
@@ -222,7 +239,7 @@ def cmd_sync(args):
 
 def cmd_export(args):
     try:
-        config = load_config()
+        config = _apply_database_override(load_config(), args)
         written = export_database(
             config.database_path,
             args.output,
@@ -247,8 +264,12 @@ def main():
     parser = argparse.ArgumentParser(
         prog=PROGRAM_NAME, description="Local-first Mi Fitness health data bridge"
     )
+    db_help = (
+        "SQLite 数据库路径（优先级高于 MI_FITNESS_DB_PATH 环境变量和默认位置）"
+    )
     subparsers = parser.add_subparsers(dest="command", help="可用命令")
-    subparsers.add_parser("serve", help="运行 MCP Server")
+    serve_parser = subparsers.add_parser("serve", help="运行 MCP Server")
+    serve_parser.add_argument("--db", help=db_help)
 
     setup_parser = subparsers.add_parser("setup", help="配置服务")
     setup_parser.add_argument("--mode", choices=["mi_fitness_cloud"], help="配置模式")
@@ -256,7 +277,8 @@ def main():
     setup_parser.add_argument("--pass-token", help="Mi Fitness passToken")
     setup_parser.add_argument("--region", help="云端区域")
 
-    subparsers.add_parser("doctor", help="检查配置并诊断问题")
+    doctor_parser = subparsers.add_parser("doctor", help="检查配置并诊断问题")
+    doctor_parser.add_argument("--db", help=db_help)
 
     sync_parser = subparsers.add_parser("sync", help="从数据源同步数据")
     sync_parser.add_argument(
@@ -275,6 +297,7 @@ def main():
     )
     sync_parser.add_argument("--start-date", help="开始日期（YYYY-MM-DD）")
     sync_parser.add_argument("--end-date", help="结束日期（YYYY-MM-DD）")
+    sync_parser.add_argument("--db", help=db_help)
 
     export_parser = subparsers.add_parser("export", help="Export normalized local data")
     export_parser.add_argument("--format", choices=["json", "csv"], default="json")
@@ -286,10 +309,11 @@ def main():
         default="exports",
         help="JSON file path or CSV output directory",
     )
+    export_parser.add_argument("--db", help=db_help)
 
     args = parser.parse_args()
     if args.command == "serve" or args.command is None:
-        asyncio.run(server_main())
+        asyncio.run(server_main(db_path=resolve_database_path(getattr(args, "db", None))))
     elif args.command == "setup":
         cmd_setup(args)
     elif args.command == "doctor":
