@@ -6,7 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- `--db` option and `MI_FITNESS_DB_PATH` environment variable to override the SQLite database location for `sync`, `export`, `serve`, and `doctor`; precedence is CLI option > environment variable > default platform location. This enables test and multi-database isolation, which the platformdirs default cannot provide (it ignores `LOCALAPPDATA` on Windows).
+- "How to get user_id and passToken" guidance in the README configuration sections (browser-cookie method and QR-login tooling), referenced from `doctor` output when no configuration file is found.
+- Git Bash virtualenv activation command in the installation instructions.
+- Export-sensitivity note in `docs/export-format.md` and the README privacy sections: exports contain no passToken but do carry plaintext `user_id` identifier columns and must be handled as sensitive personal data.
 - Warn after successful CLI exports when selected datasets contain zero rows; exported JSON/CSV bytes are unchanged (#7, thanks @pollychen-lab).
+
+### Changed
+
+- `load_config()` no longer writes a default `config.json` on first run; configuration is persisted only by the explicit `setup` command.
+- README test-suite counts updated to the current 46 tests.
 
 ## [0.3.0] - 2026-08-13
 
