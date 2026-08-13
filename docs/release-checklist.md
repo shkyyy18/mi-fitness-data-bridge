@@ -11,12 +11,12 @@
 
 ## Real-account pilot gate
 
-- [ ] `mi-fitness-bridge doctor` exits successfully with a locally configured account.
-- [ ] A bounded 7-day sync succeeds for daily activity and sleep.
-- [ ] At least one additional device-supported dataset syncs successfully.
-- [ ] JSON and CSV exports open correctly and contain no credential fields.
-- [ ] Re-running the same date range is idempotent and does not duplicate records.
-- [ ] Pilot evidence records only redacted counts, device/region compatibility, and error classes; no personal health values or identifiers are committed.
+- [x] `mi-fitness-bridge doctor` exits successfully with a locally configured account.
+- [x] A bounded 7-day sync succeeds for daily activity and sleep.
+- [x] At least one additional device-supported dataset syncs successfully.
+- [x] JSON and CSV exports open correctly and contain no credential fields.
+- [x] Re-running the same date range is idempotent and does not duplicate records.
+- [x] Pilot evidence records only redacted counts, device/region compatibility, and error classes; no personal health values or identifiers are committed.
 
 ## GitHub publication
 
@@ -41,4 +41,5 @@
 - 2026-07-16: tracked-file scanning found no credential, database, export, log, personal identifier, or real health-data artifacts; the tracked demo screenshot is explicitly documented as synthetic.
 - 2026-07-16: the public repository, synchronized `main`, annotated `v0.2.0` tag, and successful Python 3.11/3.12/3.13 CI were verified.
 - 2026-08-13: v0.3.0 released — 38 tests and Ruff green locally, `main` + annotated `v0.3.0` tag pushed, GitHub Release notes published from `CHANGELOG.md`, main-branch CI green.
-- Still open: real-account pilot evidence, vulnerability reporting, branch rules, and post-release adoption evidence.
+- 2026-08-13: real-account pilot passed 6/6 gates — `doctor` OK (region cn, 8 dataset types), bounded 7-day sync (2026-08-07..13) succeeded for daily activity (7 rows), sleep (8 rows), and heart rate (2032 rows); JSON/CSV exports matched sync counts with zero credential-field matches; re-sync was idempotent (no duplicate rows). Evidence recorded with redacted counts only.
+- Still open: vulnerability reporting, branch rules, and post-release adoption evidence.
