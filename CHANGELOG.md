@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-13
+
 ### Added
 
 - `--db` option and `MI_FITNESS_DB_PATH` environment variable to override the SQLite database location for `sync`, `export`, `serve`, and `doctor`; precedence is CLI option > environment variable > default platform location. This enables test and multi-database isolation, which the platformdirs default cannot provide (it ignores `LOCALAPPDATA` on Windows).
@@ -59,5 +61,6 @@ All notable changes to this project will be documented in this file.
 - Preserved the `mi_fitness_mcp` Python namespace for downstream compatibility.
 - Clarified that the Xiaomi cloud adapter is unofficial and experimental.
 
+[0.3.1]: https://github.com/shkyyy18/mi-fitness-data-bridge/releases/tag/v0.3.1
 [0.3.0]: https://github.com/shkyyy18/mi-fitness-data-bridge/releases/tag/v0.3.0
 [0.2.0]: https://github.com/shkyyy18/mi-fitness-data-bridge/releases/tag/v0.2.0

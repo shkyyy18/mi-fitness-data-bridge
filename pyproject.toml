@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mi-fitness-data-bridge"
-version = "0.3.0"
+version = "0.3.1"
 description = "Local-first bridge for Mi Fitness health data, portable exports, and MCP"
 readme = "README.md"
 license = {text = "AGPL-3.0-only"}
