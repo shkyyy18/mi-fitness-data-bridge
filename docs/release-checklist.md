@@ -25,7 +25,7 @@
 - [x] Confirm CI passes for Python 3.11, 3.12, and 3.13.
 - [ ] Enable private vulnerability reporting.
 - [ ] Configure branch protection or a ruleset after the first push.
-- [ ] Publish release notes from `CHANGELOG.md`.
+- [x] Publish release notes from `CHANGELOG.md`.
 
 ## Post-release observation
 
@@ -40,4 +40,5 @@
 - 2026-07-16: a fresh wheel was built and installed into an isolated target; wheel metadata contains both `mi-fitness-bridge` and `mi-fitness-mcp`.
 - 2026-07-16: tracked-file scanning found no credential, database, export, log, personal identifier, or real health-data artifacts; the tracked demo screenshot is explicitly documented as synthetic.
 - 2026-07-16: the public repository, synchronized `main`, annotated `v0.2.0` tag, and successful Python 3.11/3.12/3.13 CI were verified.
-- Still open: real-account pilot evidence, vulnerability reporting, branch rules, GitHub Release notes, and post-release adoption evidence.
+- 2026-08-13: v0.3.0 released — 38 tests and Ruff green locally, `main` + annotated `v0.3.0` tag pushed, GitHub Release notes published from `CHANGELOG.md`, main-branch CI green.
+- Still open: real-account pilot evidence, vulnerability reporting, branch rules, and post-release adoption evidence.
