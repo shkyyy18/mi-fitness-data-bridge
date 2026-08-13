@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.3.0] - 2026-08-13
 
 ### Added
 
@@ -44,4 +44,5 @@ All notable changes to this project will be documented in this file.
 - Preserved the `mi_fitness_mcp` Python namespace for downstream compatibility.
 - Clarified that the Xiaomi cloud adapter is unofficial and experimental.
 
+[0.3.0]: https://github.com/shkyyy18/mi-fitness-data-bridge/releases/tag/v0.3.0
 [0.2.0]: https://github.com/shkyyy18/mi-fitness-data-bridge/releases/tag/v0.2.0
