@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- Warn after successful CLI exports when selected datasets contain zero rows; exported JSON/CSV bytes are unchanged (#7, thanks @pollychen-lab).
+
 ## [0.3.0] - 2026-08-13
 
 ### Added
