@@ -3,9 +3,12 @@ from __future__ import annotations
 import csv
 import json
 import sqlite3
+from types import SimpleNamespace
 
 import pytest
 
+from mi_fitness_mcp import main as cli
+from mi_fitness_mcp.config import Config
 from mi_fitness_mcp.export import export_database
 from mi_fitness_mcp.storage import Database
 
@@ -62,6 +65,45 @@ def test_csv_export_can_filter_dataset_and_date(tmp_path):
     with written[0].open(encoding="utf-8-sig", newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert rows[0]["weight_kg"] == "73.2"
+
+
+def test_cli_export_warns_for_empty_datasets_without_changing_csv_bytes(
+    monkeypatch, tmp_path, capsys
+):
+    database = _sample_database(tmp_path)
+    baseline = tmp_path / "baseline"
+    cli_output = tmp_path / "cli"
+
+    expected_written = export_database(database, baseline, output_format="csv")
+    monkeypatch.setattr(
+        cli,
+        "load_config",
+        lambda: Config(mode="mi_fitness_cloud", database_path=database),
+    )
+
+    cli.cmd_export(
+        SimpleNamespace(
+            output=cli_output,
+            format="csv",
+            type=None,
+            start_date=None,
+            end_date=None,
+        )
+    )
+
+    output = capsys.readouterr().out
+    assert "Export completed" in output
+    warning_line = next(
+        line for line in output.splitlines() if line.startswith("Warning: no rows found")
+    )
+    assert "sleep" in warning_line
+    assert "heart_rate" in warning_line
+    assert "daily_activity" not in warning_line
+    assert "body_measurements" not in warning_line
+
+    for baseline_path in expected_written:
+        cli_path = cli_output / baseline_path.name
+        assert cli_path.read_bytes() == baseline_path.read_bytes()
 
 
 @pytest.mark.parametrize("invalid_date", ["2026/07/14", "2026-7-14", "not-a-date"])

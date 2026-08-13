@@ -238,6 +238,9 @@ def cmd_export(args):
     print("Export completed")
     for path in written:
         print(f"   {path}")
+    empty_datasets = [name for name, count in written.row_counts.items() if count == 0]
+    if empty_datasets:
+        print(f"Warning: no rows found for selected dataset(s): {', '.join(empty_datasets)}")
 
 
 def main():

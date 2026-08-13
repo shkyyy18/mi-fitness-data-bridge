@@ -21,6 +21,14 @@ DATASETS: dict[str, tuple[str, str]] = {
 }
 
 
+class ExportResult(list[Path]):
+    """Written export paths plus per-dataset row counts."""
+
+    def __init__(self, paths: list[Path], row_counts: dict[str, int]) -> None:
+        super().__init__(paths)
+        self.row_counts = row_counts
+
+
 def _validate_date_range(start_date: str | None, end_date: str | None) -> None:
     parsed: dict[str, date] = {}
     for name, value in (("start_date", start_date), ("end_date", end_date)):
@@ -87,7 +95,7 @@ def export_database(
     dataset: str | None = None,
     start_date: str | None = None,
     end_date: str | None = None,
-) -> list[Path]:
+) -> ExportResult:
     """Export normalized health records without credentials.
 
     JSON writes one envelope file. CSV writes one file per selected dataset.
@@ -111,6 +119,7 @@ def export_database(
             columns[name], records[name] = _rows(
                 connection, name, start_date=start_date, end_date=end_date
             )
+        row_counts = {name: len(records[name]) for name in selected}
 
     if output_format == "json":
         target = output if output.suffix.lower() == ".json" else output / "mi_fitness_export.json"
@@ -128,7 +137,7 @@ def export_database(
         }
         target.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
         written.append(target)
-        return written
+        return ExportResult(written, row_counts)
 
     output.mkdir(parents=True, exist_ok=True)
     for name in selected:
@@ -138,4 +147,4 @@ def export_database(
             writer.writeheader()
             writer.writerows(records[name])
         written.append(target)
-    return written
+    return ExportResult(written, row_counts)
