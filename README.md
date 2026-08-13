@@ -2,6 +2,8 @@
 
 # 米家数据桥（Mi Fitness Data Bridge）
 
+[![Glama score](https://glama.ai/mcp/servers/shkyyy18/mi-fitness-data-bridge/badges/score.svg)](https://glama.ai/mcp/servers/shkyyy18/mi-fitness-data-bridge)
+
 本地优先的数据桥接器，把**你自己的**小米运动健康数据导出到 SQLite、JSON、CSV、Python 以及兼容 MCP 的工具。
 
 *小米运动健康 App 很乐意给你看你的步数、睡眠和心率——却从不让你把这些数据带走。这个桥接器把你自己的数据放进你自己硬盘上的一个 SQLite 文件里。*
@@ -153,11 +155,12 @@ pip install mijiaAPI
 python -c "from mijiaAPI import mijiaAPI; mijiaAPI().login()"   # 终端出二维码，用米家 App 扫码
 ```
 
-登录态默认保存在 `~/.config/mijia-api/auth.json`，其中的 `userId` 和 `passToken` 即可直接用于本桥接器——小米账号级凭据跨服务通用，桥接器会用它换取小米运动健康（`sid=miothealth`）的会话。
+登录态默认保存在 `~/.config/mijia-api/auth.json`（Windows 为 `%USERPROFILE%\.config\mijia-api\auth.json`），其中的 `userId` 和 `passToken` 即可直接用于本桥接器——小米账号级凭据跨服务通用，桥接器会用它换取小米运动健康（`sid=miothealth`）的会话。
 
 注意：
 
 - passToken 会过期；`doctor` 报认证失败时按上面步骤重新获取一次即可。
+- 浏览器法请在自己常用的网络环境下登录；频繁或异地操作可能触发小米账号风控（滑块/短信验证），如遇风控可改用扫码法。
 - Cookie 名称与登录流程基于 2026-08 的实测，可能因账号地区、设备或风控策略而异；小米也可能随时调整私有接口（见顶部实验性声明）。
 - 这两个值等同于你的账号登录态，请勿泄露，也请勿提交到 Git。
 

@@ -2,6 +2,8 @@
 
 # Mi Fitness Data Bridge
 
+[![Glama score](https://glama.ai/mcp/servers/shkyyy18/mi-fitness-data-bridge/badges/score.svg)](https://glama.ai/mcp/servers/shkyyy18/mi-fitness-data-bridge)
+
 Local-first data bridge for exporting **your own** Mi Fitness health data to SQLite, JSON, CSV, Python, and MCP-compatible tools.
 
 *Your Mi Fitness app will happily show you your own steps, sleep, and heart rate — but never let you take them anywhere. This bridge puts your own data into a SQLite file on your own disk.*
@@ -157,11 +159,12 @@ pip install mijiaAPI
 python -c "from mijiaAPI import mijiaAPI; mijiaAPI().login()"   # shows a QR code; scan it with the Mi Home app
 ```
 
-The session is saved to `~/.config/mijia-api/auth.json` by default; the `userId` and `passToken` in that file work directly with this bridge — account-level Xiaomi credentials work across services, and the adapter exchanges them for a Mi Fitness session (`sid=miothealth`).
+The session is saved to `~/.config/mijia-api/auth.json` by default (`%USERPROFILE%\.config\mijia-api\auth.json` on Windows); the `userId` and `passToken` in that file work directly with this bridge — account-level Xiaomi credentials work across services, and the adapter exchanges them for a Mi Fitness session (`sid=miothealth`).
 
 Notes:
 
 - The passToken expires; if `doctor` reports an authentication failure, simply fetch a fresh one with the steps above.
+- For the browser method, sign in from your usual network environment; frequent or unusual-location attempts may trigger Xiaomi's risk control (slider/SMS verification). If that happens, use the QR method instead.
 - Cookie names and the login flow above were verified in 2026-08 and may vary by account region, device, or risk-control policy; Xiaomi can also change its private endpoints at any time (see the experimental notice at the top).
 - These two values are equivalent to your account login session. Never share them and never commit them to Git.
 
