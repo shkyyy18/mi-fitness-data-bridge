@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import sqlite3
+from contextlib import suppress
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
@@ -19,6 +21,15 @@ DATASETS: dict[str, tuple[str, str]] = {
     "stress": ("stress_samples", "timestamp"),
     "abnormal_heart_beat": ("abnormal_heart_beat_events", "start_at"),
 }
+
+
+def _chmod_private(path: Path, mode: int) -> None:
+    """Restrict permissions on POSIX (Windows relies on ACLs instead)."""
+    if os.name == "nt":
+        return
+    # filesystems without chmod support (e.g. FAT) — best effort
+    with suppress(OSError):
+        os.chmod(path, mode)
 
 
 class ExportResult(list[Path]):
@@ -124,6 +135,7 @@ def export_database(
     if output_format == "json":
         target = output if output.suffix.lower() == ".json" else output / "mi_fitness_export.json"
         target.parent.mkdir(parents=True, exist_ok=True)
+        _chmod_private(target.parent, 0o700)
         payload = {
             "schema_version": "1.0",
             "source": "mi_fitness_data_bridge",
@@ -136,15 +148,19 @@ def export_database(
             "records": records,
         }
         target.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        # Exports carry sensitive health data: owner-only on POSIX.
+        _chmod_private(target, 0o600)
         written.append(target)
         return ExportResult(written, row_counts)
 
     output.mkdir(parents=True, exist_ok=True)
+    _chmod_private(output, 0o700)
     for name in selected:
         target = output / f"{name}.csv"
         with target.open("w", newline="", encoding="utf-8-sig") as handle:
             writer = csv.DictWriter(handle, fieldnames=columns[name])
             writer.writeheader()
             writer.writerows(records[name])
+        _chmod_private(target, 0o600)
         written.append(target)
     return ExportResult(written, row_counts)

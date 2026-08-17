@@ -17,6 +17,11 @@ DEFAULT_RESOLUTION_SECONDS = 60
 DEFAULT_MAX_POINTS = 400
 HARD_MAX_POINTS = 500
 
+# Hard default cap for list queries (heart rate / spo2 / stress / abnormal
+# heart beat) so an agent calling without an explicit limit cannot pull the
+# entire table into memory; the limit is enforced in SQL, not by slicing.
+DEFAULT_QUERY_LIMIT = 5000
+
 
 class QueryService:
     """Service for querying fitness data from local database."""
@@ -260,6 +265,11 @@ class QueryService:
         downsampled series for full precision. Summary statistics and
         time-in-zone are always computed on the full-resolution samples.
 
+        Every heart-rate sample inside the activity window is used, regardless
+        of ``sample_type`` (the cloud adapter only writes passive/active/
+        resting samples); ``data_quality.sample_type`` lists the types actually
+        observed, or ``None`` when the window contains no samples.
+
         Coverage is anchored on the activity's nominal duration (from the
         workout row), so data missing at the start or end of an activity shows
         up as ``coverage_ratio < 1.0`` instead of looking like a shorter,
@@ -285,14 +295,13 @@ class QueryService:
         start_at = workout["start_at"]
         end_at = workout["end_at"]
 
-        # Prefer explicit workout samples; fall back to every sample in the window.
-        samples = self.db.query_heart_rate_samples_range(
-            self.user_id, start_at, end_at, sample_type="workout"
-        )
-        sample_type = "workout"
-        if not samples:
-            samples = self.db.query_heart_rate_samples_range(self.user_id, start_at, end_at)
-            sample_type = "any"
+        # The cloud adapter only ever writes passive/active/resting samples, so
+        # filtering by a "workout" sample_type would always come back empty.
+        # Use every heart-rate sample inside the activity window and report the
+        # sample types actually present.
+        samples = self.db.query_heart_rate_samples_range(self.user_id, start_at, end_at)
+        observed_types = sorted({str(s.get("sample_type") or "unknown") for s in samples})
+        sample_type = "+".join(observed_types) if observed_types else None
 
         bpms = [int(s["bpm"]) for s in samples]
         source_points = len(bpms)
@@ -349,7 +358,6 @@ class QueryService:
                 start_at,
                 end_at,
                 bucket_seconds,
-                sample_type="workout" if sample_type == "workout" else None,
             )
             points = [
                 {
@@ -549,23 +557,22 @@ class QueryService:
         sample_type: str | None = None,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
-        records = self.db.query_heart_rate_samples(self.user_id, start_date, end_date)
+        records = self.db.query_heart_rate_samples(
+            self.user_id,
+            start_date,
+            end_date,
+            sample_type=sample_type,
+            limit=limit if limit is not None else DEFAULT_QUERY_LIMIT,
+        )
 
-        samples = []
-        for record in records:
-            if sample_type and record.get("sample_type") != sample_type:
-                continue
-            samples.append(
-                {
-                    "timestamp": record["timestamp"],
-                    "bpm": record["bpm"],
-                    "sample_type": record.get("sample_type", "passive"),
-                }
-            )
-
-        if limit is not None:
-            return samples[:limit]
-        return samples
+        return [
+            {
+                "timestamp": record["timestamp"],
+                "bpm": record["bpm"],
+                "sample_type": record.get("sample_type", "passive"),
+            }
+            for record in records
+        ]
 
     def get_spo2_samples(
         self,
@@ -573,15 +580,19 @@ class QueryService:
         end_date: str,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
-        records = self.db.query_spo2_samples(self.user_id, start_date, end_date)
-        samples = [
+        records = self.db.query_spo2_samples(
+            self.user_id,
+            start_date,
+            end_date,
+            limit=limit if limit is not None else DEFAULT_QUERY_LIMIT,
+        )
+        return [
             {
                 "timestamp": record["timestamp"],
                 "spo2_pct": record["spo2_pct"],
             }
             for record in records
         ]
-        return samples[:limit] if limit is not None else samples
 
     def get_stress_samples(
         self,
@@ -590,19 +601,21 @@ class QueryService:
         level: str | None = None,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
-        records = self.db.query_stress_samples(self.user_id, start_date, end_date)
-        samples = []
-        for record in records:
-            if level and record.get("level") != level:
-                continue
-            samples.append(
-                {
-                    "timestamp": record["timestamp"],
-                    "stress_score": record["stress_score"],
-                    "level": record["level"],
-                }
-            )
-        return samples[:limit] if limit is not None else samples
+        records = self.db.query_stress_samples(
+            self.user_id,
+            start_date,
+            end_date,
+            level=level,
+            limit=limit if limit is not None else DEFAULT_QUERY_LIMIT,
+        )
+        return [
+            {
+                "timestamp": record["timestamp"],
+                "stress_score": record["stress_score"],
+                "level": record["level"],
+            }
+            for record in records
+        ]
 
     def get_abnormal_heart_beat_events(
         self,
@@ -610,8 +623,13 @@ class QueryService:
         end_date: str,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
-        records = self.db.query_abnormal_heart_beat_events(self.user_id, start_date, end_date)
-        events = [
+        records = self.db.query_abnormal_heart_beat_events(
+            self.user_id,
+            start_date,
+            end_date,
+            limit=limit if limit is not None else DEFAULT_QUERY_LIMIT,
+        )
+        return [
             {
                 "event_id": record["event_id"],
                 "start_at": record["start_at"],
@@ -620,7 +638,6 @@ class QueryService:
             }
             for record in records
         ]
-        return events[:limit] if limit is not None else events
 
     def get_data_coverage(self, data_types: list[str] | None = None) -> list[dict[str, Any]]:
         """Get data coverage information."""

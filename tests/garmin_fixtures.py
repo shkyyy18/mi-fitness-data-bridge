@@ -168,7 +168,7 @@ def seed_garmin_ride(
                 id=f"{workout_id}-hr-{i}",
                 timestamp=start + timedelta(seconds=offset),
                 bpm=bpm,
-                sample_type="workout",
+                sample_type="active",
                 **base,
             )
             for i, (offset, bpm) in enumerate(samples)

@@ -9,10 +9,12 @@ from __future__ import annotations
 import asyncio
 import json
 import statistics
+from datetime import datetime, timedelta
 
 import pytest
 
 from mi_fitness_mcp import server
+from mi_fitness_mcp.models import HeartRateSample, Workout
 from mi_fitness_mcp.services.query_service import (
     HARD_MAX_POINTS,
     ZONE_FRACTIONS,
@@ -144,6 +146,68 @@ def test_short_workout_is_returned_at_full_resolution(tmp_path):
 def test_unknown_workout_raises(service):
     with pytest.raises(ValueError, match="Unknown workout_id"):
         service.get_workout_series("no-such-workout")
+
+
+def test_workout_series_includes_all_sample_types_in_window(tmp_path):
+    """The cloud adapter only writes passive/active/resting samples; filtering
+    by a "workout" sample_type always came back empty. The series must use
+    every sample inside the activity window and report the observed types."""
+    db = Database(tmp_path / "mixed.db")
+    base = {"provider": "mi_fitness", "source_type": "cloud_session", "user_id": SYNTHETIC_USER_ID}
+    start = datetime(2026, 7, 15, 8, 0, 0)
+    db.insert_workout(
+        Workout(
+            id="w-mixed",
+            workout_id="w-mixed",
+            activity_type="running",
+            start_at=start,
+            end_at=start + timedelta(seconds=2),
+            duration_minutes=1,
+            **base,
+        )
+    )
+    db.insert_heart_rate_samples(
+        [
+            HeartRateSample(
+                id=f"mixed-{sample_type}",
+                timestamp=start + timedelta(seconds=offset),
+                bpm=120 + offset,
+                sample_type=sample_type,
+                **base,
+            )
+            for offset, sample_type in enumerate(["active", "passive", "resting"])
+        ]
+    )
+    service = QueryService(db, SYNTHETIC_USER_ID)
+
+    result = service.get_workout_series("w-mixed")
+
+    assert result["source_points"] == 3
+    assert [p["value"] for p in result["points"]] == [120, 121, 122]
+    assert result["data_quality"]["sample_type"] == "active+passive+resting"
+
+
+def test_workout_series_empty_window_reports_none_sample_type(tmp_path):
+    db = Database(tmp_path / "empty.db")
+    base = {"provider": "mi_fitness", "source_type": "cloud_session", "user_id": SYNTHETIC_USER_ID}
+    start = datetime(2026, 7, 15, 8, 0, 0)
+    db.insert_workout(
+        Workout(
+            id="w-empty",
+            workout_id="w-empty",
+            activity_type="running",
+            start_at=start,
+            end_at=start + timedelta(minutes=30),
+            duration_minutes=30,
+            **base,
+        )
+    )
+    service = QueryService(db, SYNTHETIC_USER_ID)
+
+    result = service.get_workout_series("w-empty")
+
+    assert result["source_points"] == 0
+    assert result["data_quality"]["sample_type"] is None
 
 
 def test_unsupported_metric_raises(service):

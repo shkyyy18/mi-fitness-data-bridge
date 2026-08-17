@@ -84,7 +84,7 @@ def seed_synthetic_ride(
                 id=f"{workout_id}-hr-{i}",
                 timestamp=start + timedelta(seconds=i),
                 bpm=bpm,
-                sample_type="workout",
+                sample_type="active",
                 **base,
             )
             for i, bpm in enumerate(bpms)
