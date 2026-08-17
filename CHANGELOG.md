@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Security
+
+- Removed the `--user-id` / `--pass-token` flags from `mi-fitness-bridge setup`; credentials are now only accepted through the interactive prompt, so a passToken can no longer end up in shell history.
+- The Xiaomi login redirect `location` (server-controlled input) is validated against an allowlist of Xiaomi-owned HTTPS hosts (`*.xiaomi.com`, `*.mi.com`) before it is followed, closing an SSRF/credential-leak vector.
+- `setup` and `doctor` print a prominent warning when the active keyring backend stores secrets weakly or not at all (fail/null/plaintext backends); the flow is not blocked.
+- On POSIX, the SQLite database file is created with `0600`, its directory with `0700`, and export files with `0600` (unchanged on Windows, where ACLs apply).
+
+### Fixed
+
+- `workout_series` no longer filters heart-rate samples by a `workout` sample_type the cloud adapter never writes (it only stores passive/active/resting), which made the filtered query always empty. The series now uses every sample inside the activity window, and `data_quality.sample_type` reports the types actually observed (`None` when the window is empty).
+- Version strings aligned at 0.3.1 across `pyproject.toml`, `src/mi_fitness_mcp/__init__.py`, and `server.json`; the release checklist now includes a version-consistency check.
+
+### Changed
+
+- List queries (`query_heart_rate`, `query_spo2`, `query_stress`, `query_abnormal_heart_beat`) push `limit` down to SQL `LIMIT` instead of loading the full table and slicing in Python, and default to a hard cap of 5000 rows when no limit is given.
+- Project renamed to 米桥 / Mi Bridge; README GitHub links point to the new `shkyyy18/mi-bridge` repository name, and the trademark disclaimer is a standalone prominent line.
+- The MIT license text of upstream author Aleksej Kubulashvili is preserved in a NOTICE block at the top of `LICENSE`, with the license history (MIT before 2026-08-03, AGPL-3.0-only after) stated in the README.
+- Dropped the unused `click` and `rich` dependencies.
+- The issue-template security contact link now points at `SECURITY.md` (private vulnerability reporting is not enabled on the repository yet).
+
 ## [0.3.1] - 2026-08-13
 
 ### Added

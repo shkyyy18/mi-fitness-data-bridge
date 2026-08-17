@@ -1,14 +1,16 @@
 > 中文版：[README.md](README.md)
 
-# Mi Fitness Data Bridge
+# Mi Bridge (Mi Fitness Data Bridge)
 
-[![Glama score](https://glama.ai/mcp/servers/shkyyy18/mi-fitness-data-bridge/badges/score.svg)](https://glama.ai/mcp/servers/shkyyy18/mi-fitness-data-bridge)
+[![Glama score](https://glama.ai/mcp/servers/shkyyy18/mi-bridge/badges/score.svg)](https://glama.ai/mcp/servers/shkyyy18/mi-bridge)
 
 Local-first data bridge for exporting **your own** Mi Fitness health data to SQLite, JSON, CSV, Python, and MCP-compatible tools.
 
 *Your Mi Fitness app will happily show you your own steps, sleep, and heart rate — but never let you take them anywhere. This bridge puts your own data into a SQLite file on your own disk.*
 
-> Unofficial community project. It is not affiliated with or endorsed by Xiaomi. The experimental cloud adapter can stop working when Xiaomi changes private endpoints. Use it only with an account and data you are authorized to access.
+> **Trademark notice: Xiaomi, Mi Home (米家), and Mi Fitness are trademarks of Xiaomi Corporation. This is an unofficial community project, not affiliated with or endorsed by Xiaomi Corporation.**
+
+> The experimental cloud adapter can stop working when Xiaomi changes private endpoints. Use it only with an account and data you are authorized to access.
 
 ## Synthetic demo
 
@@ -24,15 +26,16 @@ Test suite:
 
 ```text
 $ python -m pytest -q -p no:cacheprovider
-..............................................                       [100%]
-46 passed in 7.21s
+........................................................................ [ 96%]
+...                                                                      [100%]
+75 passed in 10.27s
 ```
 
 End-to-end synthetic demo (`examples/synthetic_demo.py` seeds a local SQLite cache with synthetic records, then runs the real JSON/CSV export pipeline):
 
 ```text
 $ python examples/synthetic_demo.py
-Seeded synthetic database: C:\Users\njshk\AppData\Local\Temp\mi-fitness-demo-53el7cfh\mi_fitness.db
+Seeded synthetic database: C:\Users\<you>\AppData\Local\Temp\mi-fitness-demo-53el7cfh\mi_fitness.db
   daily_activity: 2026-07-15 .. 2026-07-15 (1 day(s))
   sleep: 2026-07-14 .. 2026-07-14 (1 day(s))
   workouts: 2026-07-15 .. 2026-07-15 (1 day(s))
@@ -103,7 +106,7 @@ Availability varies by device, account region, firmware, and Xiaomi's upstream s
 ## Install
 
 ```bash
-git clone https://github.com/shkyyy18/mi-fitness-data-bridge.git mi_fitness_data_bridge
+git clone https://github.com/shkyyy18/mi-bridge.git mi_fitness_data_bridge
 cd mi_fitness_data_bridge
 python -m venv .venv
 ```
@@ -159,7 +162,7 @@ pip install mijiaAPI
 python -c "from mijiaAPI import mijiaAPI; mijiaAPI().login()"   # shows a QR code; scan it with the Mi Home app
 ```
 
-The session is saved to `~/.config/mijia-api/auth.json` by default (`%USERPROFILE%\.config\mijia-api\auth.json` on Windows); the `userId` and `passToken` in that file work directly with this bridge — account-level Xiaomi credentials work across services, and the adapter exchanges them for a Mi Fitness session (`sid=miothealth`).
+The session is saved to `~/.config/mijia-api/auth.json` by default (`%USERPROFILE%\.config\mijia-api\auth.json` on Windows); the `userId` and `passToken` in that file work directly with this bridge — account-level Xiaomi credentials work across services, and the adapter exchanges them for a Mi Fitness session (`sid=miothealth`). Note that `auth.json` stores the credentials in plaintext: once they are entered into this bridge (the OS keyring), consider deleting that file.
 
 Notes:
 
@@ -187,6 +190,8 @@ The database lives in the platform user-data directory (chosen by platformdirs).
 mi-fitness-bridge sync --db ./data/mi_fitness.db --start-date 2026-07-01 --end-date 2026-07-15
 export MI_FITNESS_DB_PATH=./data/mi_fitness.db
 ```
+
+Known limitation: an incremental sync without date arguments starts from the timestamp of the last locally stored record, so upstream corrections or backfills to earlier history are not picked up automatically; re-run that range with an explicit earlier `--start-date` when needed (the re-run is idempotent and does not duplicate records).
 
 ## Export
 
@@ -225,6 +230,21 @@ mi-fitness-mcp serve
 ```
 
 Available tools include connection status, synchronization, coverage, daily summaries, body measurements, sleep, workouts, heart rate, SpO2, and stress queries, plus the agent-facing `workout_series` tool — it auto-downsamples long workout time series under a hard `max_points` cap (fixed time-bucket means, aggregated in SQLite) and honestly reports `downsampled`, `source_points`, `returned_points`, and `method`, alongside full-resolution stats (avg/min/max/quantiles) and heart-rate time-in-zone. List/summary tools such as `query_workouts` and `get_daily_summary` carry a `data_quality` field (coverage days, missing metrics, last sync time).
+
+Client setup example (MCP configuration JSON for Claude Code / Codex and similar clients):
+
+```json
+{
+  "mcpServers": {
+    "mi-bridge": {
+      "command": "mi-fitness-bridge",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+Note: `serve` is a stdio service that talks to the client over standard input/output — it is not an HTTP service. Running it directly in a terminal looks like it "hangs"; it is simply waiting for MCP messages from a client, which is normal. In daily use, let your MCP client launch it via the configuration above.
 
 ## Use as a Python dependency
 
@@ -265,8 +285,8 @@ This is a young, single-maintainer project, and we would rather show real number
 
 - **Stars:** 1 — currently the only star across the maintainer's entire GitHub account, and it is on this repository. If this bridge is useful to you, your star genuinely stands out.
 - **Traffic (GitHub insights, 14 days ending 2026-07-25):** 36 unique cloners, 2 unique visitors.
-- **External contributions:** none yet — no outside pull requests or issues have arrived. The queue is open and curated; see the [good first issues](https://github.com/shkyyy18/mi-fitness-data-bridge/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
-- **Test suite:** 46 tests pass locally (`python -m pytest -q -p no:cacheprovider`), verified 2026-08-13 with Python 3.14 on Windows.
+- **External contributions:** none yet — no outside pull requests or issues have arrived. The queue is open and curated; see the [good first issues](https://github.com/shkyyy18/mi-bridge/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+- **Test suite:** 75 tests pass locally (`python -m pytest -q -p no:cacheprovider`), verified 2026-08-17 with Python 3.14 on Windows.
 
 The maintainer's sibling project [AgentCron](https://github.com/shkyyy18/cc-autopilot) received its first three external pull requests through exactly this kind of good-first-issue queue; the [first-contribution case study](https://github.com/shkyyy18/cc-autopilot/blob/main/docs/first-contribution-case-study.md) documents what made those tasks approachable. The same design is applied here: small scope, written acceptance criteria, offline-verifiable with synthetic data, and no real health data ever required.
 
@@ -276,7 +296,7 @@ The maintainer's sibling project [AgentCron](https://github.com/shkyyy18/cc-auto
 
 ## Support the project
 
-If this bridge finally let you do something with your own Mi Fitness data — a chart, a backup, an MCP-powered query — a star on [GitHub](https://github.com/shkyyy18/mi-fitness-data-bridge) helps the next person who wants their own data back find it. And if you have ten minutes, a good first issue is the fastest way to make the bridge better.
+If this bridge finally let you do something with your own Mi Fitness data — a chart, a backup, an MCP-powered query — a star on [GitHub](https://github.com/shkyyy18/mi-bridge) helps the next person who wants their own data back find it. And if you have ten minutes, a good first issue is the fastest way to make the bridge better.
 
 ## License
 

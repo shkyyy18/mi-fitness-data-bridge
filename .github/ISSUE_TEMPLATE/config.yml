@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Private security report
-    url: https://github.com/shkyyy18/mi-fitness-data-bridge/security/advisories/new
-    about: Report credential exposure or security vulnerabilities privately.
+  # GitHub private vulnerability reporting is not enabled for this repository
+  # yet, so there is no /security/advisories/new page to link to. Point
+  # reporters at SECURITY.md instead, which describes the reporting policy.
+  - name: Security report
+    url: https://github.com/shkyyy18/mi-bridge/blob/main/SECURITY.md
+    about: Report credential exposure or security vulnerabilities — see SECURITY.md for the reporting policy before opening a public issue.

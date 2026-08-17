@@ -9,7 +9,7 @@
 ## 技术栈
 
 - Python ≥ 3.11，hatchling 构建，src 布局 `src/mi_fitness_mcp/`
-- 依赖：`mcp>=1.0`、`pydantic>=2`、`httpx>=0.27`、`platformdirs`、`keyring>=25`、`click`（注意：CLI 实际用 argparse 实现，click 已声明未使用）、`rich`
+- 依赖：`mcp>=1.0`、`pydantic>=2`、`httpx>=0.27`、`platformdirs`、`keyring>=25`（CLI 用 argparse 实现，无 click/rich）
 - 测试：pytest + pytest-asyncio + respx（HTTP mock）；lint：ruff（line-length 100，select E/F/I/N/W/UP/B/C4/SIM，忽略 E501）
 
 ## 常用命令
@@ -39,7 +39,7 @@ python -m ruff check src tests
 - 只允许改动本仓库；**严禁读取、复制、传输任何真实凭证与健康数据**：passToken、SQLite 库、导出文件、日志均不得入库、不得进报告、不得上传到任何第三方（.gitignore 已覆盖 `.env*`、`*.db`、`exports/`、`logs/` 等，不得绕过）。
 - 适配器（`adapters/mi_fitness_cloud.py`）只访问用户本人有权访问的账号；任何测试/调试一律用合成数据（`examples/synthetic_demo.py`）或 respx mock，不得对真实小米端点发起探测性请求。
 - 保持非官方/实验性定位声明与上游 MIT 归属（THIRD_PARTY_NOTICES.md），不得在 README/文档中弱化这些声明。
-- 推荐交互式 `setup`（getpass 不回显）；不要在文档/脚本中鼓励 `--pass-token` 命令行直传（会进 shell 历史，README:113-118 已有说明）。
+- `setup` 只走交互式（getpass 不回显）；`--user-id` / `--pass-token` 命令行旗标已于 2026-08-17 移除（会进 shell 历史），不得在文档/脚本中重新引入。
 
 ## 升级建议有效性 / 采纳规则（本仓定制）
 

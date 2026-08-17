@@ -1,34 +1,37 @@
 > English version: [README.en.md](README.en.md)
 
-# 米家数据桥（Mi Fitness Data Bridge）
+# 米桥（Mi Fitness Data Bridge）
 
-[![Glama score](https://glama.ai/mcp/servers/shkyyy18/mi-fitness-data-bridge/badges/score.svg)](https://glama.ai/mcp/servers/shkyyy18/mi-fitness-data-bridge)
+[![Glama score](https://glama.ai/mcp/servers/shkyyy18/mi-bridge/badges/score.svg)](https://glama.ai/mcp/servers/shkyyy18/mi-bridge)
 
 本地优先的数据桥接器，把**你自己的**小米运动健康数据导出到 SQLite、JSON、CSV、Python 以及兼容 MCP 的工具。
 
 *小米运动健康 App 很乐意给你看你的步数、睡眠和心率——却从不让你把这些数据带走。这个桥接器把你自己的数据放进你自己硬盘上的一个 SQLite 文件里。*
 
-<p align="center"><img src="docs/assets/bridge-hero.png" width="100%" alt="米家设备通过 Mi Fitness Data Bridge 连接各大 AI 模型"></p>
+<p align="center"><img src="docs/assets/bridge-hero.png" width="100%" alt="米家设备通过米桥（Mi Fitness Data Bridge）连接各大 AI 模型"></p>
 
-> 非官方社区项目。本项目与小米没有任何隶属或背书关系。实验性的云端适配器可能因为小米改动私有接口而随时失效。请只在你有权访问的账号和数据上使用。
+> **商标声明：小米、米家、Mi Fitness 均为小米公司商标。本项目为非官方社区项目，与小米公司无任何隶属或背书关系。**
+
+> 实验性的云端适配器可能因为小米改动私有接口而随时失效。请只在你有权访问的账号和数据上使用。
 
 ## 实测验证
 
-2026-07-20 在 Windows（Python 3.14）上基于 `main` 分支的提交录制。所有数据均为合成数据，不涉及任何凭据或网络访问。（测试数量已于 2026-08-13 复核更新。）
+2026-07-20 在 Windows（Python 3.14）上基于 `main` 分支的提交录制。所有数据均为合成数据，不涉及任何凭据或网络访问。（测试数量已于 2026-08-17 复核更新。）
 
 测试套件：
 
 ```text
 $ python -m pytest -q -p no:cacheprovider
-..............................................                       [100%]
-46 passed in 7.21s
+........................................................................ [ 96%]
+...                                                                      [100%]
+75 passed in 10.27s
 ```
 
 端到端合成演示（`examples/synthetic_demo.py` 先用合成记录填充本地 SQLite 缓存，再跑真实的 JSON/CSV 导出流水线）：
 
 ```text
 $ python examples/synthetic_demo.py
-Seeded synthetic database: C:\Users\njshk\AppData\Local\Temp\mi-fitness-demo-53el7cfh\mi_fitness.db
+Seeded synthetic database: C:\Users\<you>\AppData\Local\Temp\mi-fitness-demo-53el7cfh\mi_fitness.db
   daily_activity: 2026-07-15 .. 2026-07-15 (1 day(s))
   sleep: 2026-07-14 .. 2026-07-14 (1 day(s))
   workouts: 2026-07-15 .. 2026-07-15 (1 day(s))
@@ -99,7 +102,7 @@ Sample sleep row (synthetic):
 ## 安装
 
 ```bash
-git clone https://github.com/shkyyy18/mi-fitness-data-bridge.git mi_fitness_data_bridge
+git clone https://github.com/shkyyy18/mi-bridge.git mi_fitness_data_bridge
 cd mi_fitness_data_bridge
 python -m venv .venv
 ```
@@ -155,7 +158,7 @@ pip install mijiaAPI
 python -c "from mijiaAPI import mijiaAPI; mijiaAPI().login()"   # 终端出二维码，用米家 App 扫码
 ```
 
-登录态默认保存在 `~/.config/mijia-api/auth.json`（Windows 为 `%USERPROFILE%\.config\mijia-api\auth.json`），其中的 `userId` 和 `passToken` 即可直接用于本桥接器——小米账号级凭据跨服务通用，桥接器会用它换取小米运动健康（`sid=miothealth`）的会话。
+登录态默认保存在 `~/.config/mijia-api/auth.json`（Windows 为 `%USERPROFILE%\.config\mijia-api\auth.json`），其中的 `userId` 和 `passToken` 即可直接用于本桥接器——小米账号级凭据跨服务通用，桥接器会用它换取小米运动健康（`sid=miothealth`）的会话。注意 `auth.json` 以明文保存凭据：把 `userId` 和 `passToken` 录入本桥接器（系统钥匙串）后，建议删除该文件。
 
 注意：
 
@@ -183,6 +186,8 @@ mi-fitness-bridge sync --type body_measurements --start-date 2026-07-01 --end-da
 mi-fitness-bridge sync --db ./data/mi_fitness.db --start-date 2026-07-01 --end-date 2026-07-15
 export MI_FITNESS_DB_PATH=./data/mi_fitness.db
 ```
+
+已知限制：不带日期参数的增量同步以本地最后一条记录的时间为起点，上游对更早历史的修正或补录不会被自动拉到；需要时用更早的 `--start-date` 显式重跑该区间（会幂等覆盖，不会产生重复记录）。
 
 ## 导出
 
@@ -222,6 +227,21 @@ mi-fitness-mcp serve
 
 可用的工具包括连接状态、同步、覆盖范围、每日摘要、身体测量、睡眠、运动、心率、血氧（SpO2）和压力查询，以及面向 agent 的 `workout_series` 运动时序工具——按 `max_points` 硬上限自动降采样（固定时间桶均值，SQLite 内聚合），并在响应中如实标注 `downsampled`、`source_points`、`returned_points`、`method`，同时给出全精度统计（avg/min/max/分位数）与心率区间时间。`query_workouts`、`get_daily_summary` 等列表/汇总工具附带 `data_quality`（覆盖天数、缺失指标、最后同步时间）。
 
+客户端接入示例（Claude Code / Codex 等 MCP 客户端的配置 JSON）：
+
+```json
+{
+  "mcpServers": {
+    "mi-bridge": {
+      "command": "mi-fitness-bridge",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+注意：`serve` 是 stdio 服务，通过标准输入输出与客户端通信，不是 HTTP 服务。直接在终端运行它会看似"卡住"——那是在等待客户端的 MCP 消息，属正常现象；日常请交给 MCP 客户端按上面的配置启动。
+
 ## 作为 Python 依赖使用
 
 规范化适配器在兼容模块名下仍然可用：
@@ -231,6 +251,10 @@ from mi_fitness_mcp.adapters.mi_fitness_cloud import MiFitnessCloudAdapter
 ```
 
 下游项目应当安装本包，而不是 vendor 或复制连接器源码。
+
+## 许可证
+
+许可证沿革：2026-08-03 之前发布的版本采用 MIT 许可（上游 `kubulashvili/mi-fitness-mcp` 与 `binglua/mi-fitness-mcp-cn` 的 MIT 归属保留在 `LICENSE` 顶部的 NOTICE 区块）；当前版本的新增代码采用 AGPL-3.0-only。详见 `LICENSE` 与 `THIRD_PARTY_NOTICES.md`。
 
 ## 隐私与安全
 
@@ -261,4 +285,4 @@ python -m ruff check src tests
 
 ## 支持这个项目
 
-如果这个工具帮到了你，在 [GitHub](https://github.com/shkyyy18/mi-fitness-data-bridge) 上帮我点个 star 吧。
+如果这个工具帮到了你，在 [GitHub](https://github.com/shkyyy18/mi-bridge) 上帮我点个 star 吧。
