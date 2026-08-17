@@ -282,7 +282,14 @@ class Database:
             True if record was inserted, False if updated
         """
         with self._get_connection() as conn:
-            cursor = conn.execute(
+            existed = (
+                conn.execute(
+                    "SELECT 1 FROM daily_activity WHERE id = ?",
+                    (activity.id,),
+                ).fetchone()
+                is not None
+            )
+            conn.execute(
                 """
                 INSERT INTO daily_activity (
                     id, provider, source_type, source_record_id, user_id, device_id,
@@ -319,12 +326,19 @@ class Database:
                 ),
             )
             conn.commit()
-            return cursor.rowcount > 0
+            return not existed
 
     def insert_sleep_session(self, sleep: SleepSession) -> bool:
         """Insert or update sleep session record."""
         with self._get_connection() as conn:
-            cursor = conn.execute(
+            existed = (
+                conn.execute(
+                    "SELECT 1 FROM sleep_sessions WHERE user_id = ? AND sleep_id = ?",
+                    (sleep.user_id, sleep.sleep_id),
+                ).fetchone()
+                is not None
+            )
+            conn.execute(
                 """
                 INSERT INTO sleep_sessions (
                     id, provider, source_type, source_record_id, user_id, device_id,
@@ -360,12 +374,19 @@ class Database:
                 ),
             )
             conn.commit()
-            return cursor.rowcount > 0
+            return not existed
 
     def insert_workout(self, workout: Workout) -> bool:
         """Insert or update workout record."""
         with self._get_connection() as conn:
-            cursor = conn.execute(
+            existed = (
+                conn.execute(
+                    "SELECT 1 FROM workouts WHERE user_id = ? AND workout_id = ?",
+                    (workout.user_id, workout.workout_id),
+                ).fetchone()
+                is not None
+            )
+            conn.execute(
                 """
                 INSERT INTO workouts (
                     id, provider, source_type, source_record_id, user_id, device_id,
@@ -405,12 +426,19 @@ class Database:
                 ),
             )
             conn.commit()
-            return cursor.rowcount > 0
+            return not existed
 
     def insert_body_measurement(self, measurement: BodyMeasurement) -> bool:
         """Insert or update body measurement record."""
         with self._get_connection() as conn:
-            cursor = conn.execute(
+            existed = (
+                conn.execute(
+                    "SELECT 1 FROM body_measurements WHERE id = ?",
+                    (measurement.id,),
+                ).fetchone()
+                is not None
+            )
+            conn.execute(
                 """
                 INSERT INTO body_measurements (
                     id, provider, source_type, source_record_id, user_id, device_id,
@@ -448,11 +476,18 @@ class Database:
                 ),
             )
             conn.commit()
-            return cursor.rowcount > 0
+            return not existed
 
     def insert_heart_rate_sample(self, sample: HeartRateSample) -> bool:
         with self._get_connection() as conn:
-            cursor = conn.execute(
+            existed = (
+                conn.execute(
+                    "SELECT 1 FROM heart_rate_samples WHERE id = ?",
+                    (sample.id,),
+                ).fetchone()
+                is not None
+            )
+            conn.execute(
                 """
                 INSERT INTO heart_rate_samples (
                     id, provider, source_type, source_record_id, user_id, device_id,
@@ -481,7 +516,7 @@ class Database:
                 ),
             )
             conn.commit()
-            return cursor.rowcount > 0
+            return not existed
 
     def insert_heart_rate_samples(self, samples: list[HeartRateSample]) -> int:
         """Bulk insert or update heart rate samples in a single transaction.
@@ -527,7 +562,14 @@ class Database:
 
     def insert_spo2_sample(self, sample: SpO2Sample) -> bool:
         with self._get_connection() as conn:
-            cursor = conn.execute(
+            existed = (
+                conn.execute(
+                    "SELECT 1 FROM spo2_samples WHERE id = ?",
+                    (sample.id,),
+                ).fetchone()
+                is not None
+            )
+            conn.execute(
                 """
                 INSERT INTO spo2_samples (
                     id, provider, source_type, source_record_id, user_id, device_id,
@@ -554,11 +596,18 @@ class Database:
                 ),
             )
             conn.commit()
-            return cursor.rowcount > 0
+            return not existed
 
     def insert_stress_sample(self, sample: StressSample) -> bool:
         with self._get_connection() as conn:
-            cursor = conn.execute(
+            existed = (
+                conn.execute(
+                    "SELECT 1 FROM stress_samples WHERE id = ?",
+                    (sample.id,),
+                ).fetchone()
+                is not None
+            )
+            conn.execute(
                 """
                 INSERT INTO stress_samples (
                     id, provider, source_type, source_record_id, user_id, device_id,
@@ -587,11 +636,18 @@ class Database:
                 ),
             )
             conn.commit()
-            return cursor.rowcount > 0
+            return not existed
 
     def insert_abnormal_heart_beat_event(self, event: AbnormalHeartBeatEvent) -> bool:
         with self._get_connection() as conn:
-            cursor = conn.execute(
+            existed = (
+                conn.execute(
+                    "SELECT 1 FROM abnormal_heart_beat_events WHERE user_id = ? AND event_id = ?",
+                    (event.user_id, event.event_id),
+                ).fetchone()
+                is not None
+            )
+            conn.execute(
                 """
                 INSERT INTO abnormal_heart_beat_events (
                     id, provider, source_type, source_record_id, user_id, device_id,
@@ -621,7 +677,7 @@ class Database:
                 ),
             )
             conn.commit()
-            return cursor.rowcount > 0
+            return not existed
 
     def update_sync_state(self, data_type: str, last_record_ts: datetime | None = None) -> None:
         """Update sync state for a data type."""
@@ -762,7 +818,15 @@ class Database:
             FROM heart_rate_samples
             WHERE user_id = ? AND timestamp >= ? AND timestamp <= ?
         """
-        params: list[Any] = [start_at, start_at, bucket_seconds, bucket_seconds, user_id, start_at, end_at]
+        params: list[Any] = [
+            start_at,
+            start_at,
+            bucket_seconds,
+            bucket_seconds,
+            user_id,
+            start_at,
+            end_at,
+        ]
         if sample_type:
             sql += " AND sample_type = ?"
             params.append(sample_type)
