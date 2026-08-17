@@ -6,7 +6,11 @@ import getpass
 import sys
 
 from mi_fitness_mcp.adapters.mi_fitness_cloud import MiFitnessCloudAdapter
-from mi_fitness_mcp.auth import load_mi_fitness_token, save_mi_fitness_token
+from mi_fitness_mcp.auth import (
+    keyring_backend_warning,
+    load_mi_fitness_token,
+    save_mi_fitness_token,
+)
 from mi_fitness_mcp.config import (
     Config,
     get_config_path,
@@ -35,6 +39,13 @@ def _apply_database_override(config: Config, args) -> Config:
     if override is not None:
         config.database_path = override
     return config
+
+
+def _warn_on_weak_keyring() -> None:
+    warning = keyring_backend_warning()
+    if warning:
+        print(f"⚠️  警告： {warning}")
+        print()
 
 
 
@@ -71,15 +82,9 @@ async def _check_adapter_health(
 
 
 def cmd_setup(args):
-    if args.mode == "mi_fitness_cloud" and args.user_id and args.pass_token:
-        save_mi_fitness_token(args.user_id, args.pass_token)
-        config = Config(mode="mi_fitness_cloud", region=args.region or "cn")
-        save_config(config)
-        print("✅ 配置已保存（mi_fitness_cloud）")
-        print(f"   User ID: {_masked(args.user_id)}")
-        print(f"   Region: {config.region}")
-        return
-
+    # Credentials are only accepted interactively: CLI flags would leave the
+    # passToken in shell history.
+    _warn_on_weak_keyring()
     print(f"{PROGRAM_NAME} - 配置向导")
     print("=" * 50)
     print()
@@ -114,6 +119,7 @@ def cmd_doctor(args):
     try:
         config = _apply_database_override(load_config(), args)
         print("✅ 配置已加载")
+        _warn_on_weak_keyring()
         print(f"   模式： {config.mode}")
         if config.mode == "not_configured":
             print("❌ 服务尚未配置")
@@ -273,8 +279,6 @@ def main():
 
     setup_parser = subparsers.add_parser("setup", help="配置服务")
     setup_parser.add_argument("--mode", choices=["mi_fitness_cloud"], help="配置模式")
-    setup_parser.add_argument("--user-id", help="Mi Fitness user ID")
-    setup_parser.add_argument("--pass-token", help="Mi Fitness passToken")
     setup_parser.add_argument("--region", help="云端区域")
 
     doctor_parser = subparsers.add_parser("doctor", help="检查配置并诊断问题")

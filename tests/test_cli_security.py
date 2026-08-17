@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 from types import SimpleNamespace
 
 import pytest
 
 from mi_fitness_mcp import main as cli
 from mi_fitness_mcp.adapters.mi_fitness_cloud import MiFitnessCloudAdapter
+from mi_fitness_mcp.auth import keyring_backend_warning
 from mi_fitness_mcp.config import Config
 
 
@@ -62,6 +64,56 @@ def test_interactive_setup_hides_pass_token(monkeypatch):
     assert saved["user_id"] == "synthetic-user"
     assert saved["pass_token"] == "synthetic-token"
     assert saved["config"].region == "cn"
+
+
+def test_setup_rejects_credential_cli_flags(monkeypatch):
+    """--user-id/--pass-token were removed: passTokens must not enter shell history."""
+    monkeypatch.setattr(
+        sys, "argv", ["mi-fitness-bridge", "setup", "--pass-token", "synthetic-token"]
+    )
+    with pytest.raises(SystemExit) as exc_info:
+        cli.main()
+    assert exc_info.value.code == 2  # argparse usage error
+
+
+def test_keyring_backend_warning_flags_weak_backend(monkeypatch):
+    import keyring.backends.fail
+
+    monkeypatch.setattr("keyring.get_keyring", lambda: keyring.backends.fail.Keyring())
+    warning = keyring_backend_warning()
+    assert warning is not None
+    assert "fail" in warning
+
+
+def test_keyring_backend_warning_quiet_for_strong_backend(monkeypatch):
+    class FakeWinVaultBackend:
+        pass
+
+    monkeypatch.setattr("keyring.get_keyring", lambda: FakeWinVaultBackend())
+    assert keyring_backend_warning() is None
+
+
+def test_keyring_backend_warning_reports_unknown_backend(monkeypatch):
+    def _raise():
+        raise RuntimeError("synthetic keyring failure")
+
+    monkeypatch.setattr("keyring.get_keyring", _raise)
+    warning = keyring_backend_warning()
+    assert warning is not None
+    assert "无法确定" in warning
+
+
+def test_setup_prints_weak_keyring_warning(monkeypatch, capsys):
+    answers = iter(["synthetic-user", "cn"])
+    monkeypatch.setattr("builtins.input", lambda prompt: next(answers))
+    monkeypatch.setattr(cli.getpass, "getpass", lambda prompt: "synthetic-token")
+    monkeypatch.setattr(cli, "save_mi_fitness_token", lambda *args: None)
+    monkeypatch.setattr(cli, "save_config", lambda config: None)
+    monkeypatch.setattr(cli, "keyring_backend_warning", lambda: "synthetic weak backend")
+
+    cli.cmd_setup(SimpleNamespace(mode=None, region=None))
+
+    assert "synthetic weak backend" in capsys.readouterr().out
 
 
 

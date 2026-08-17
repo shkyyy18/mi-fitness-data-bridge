@@ -10,7 +10,7 @@ from collections import defaultdict
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 import httpx
 
@@ -58,6 +58,22 @@ def _read_login_payload(text: str) -> dict:
     if not payload.startswith(LOGIN_PREFIX):
         raise RuntimeError("unexpected Xiaomi login response")
     return json.loads(payload[len(LOGIN_PREFIX) :].decode())
+
+
+# The login response carries a redirect `location` chosen by the server. Only
+# follow it to Xiaomi-owned HTTPS hosts (the flow ends on account.xiaomi.com);
+# anything else would be an SSRF/credential-leak vector.
+_LOGIN_REDIRECT_HOSTS = ("xiaomi.com", "mi.com")
+
+
+def _is_allowed_login_redirect(url: str) -> bool:
+    parsed = urlparse(url)
+    if parsed.scheme != "https":
+        return False
+    host = (parsed.hostname or "").lower()
+    return host in _LOGIN_REDIRECT_HOSTS or host.endswith(
+        tuple(f".{domain}" for domain in _LOGIN_REDIRECT_HOSTS)
+    )
 
 
 def _rc4_crypt(key: bytes, payload: bytes) -> bytes:
@@ -196,7 +212,10 @@ class MiFitnessCloudAdapter(DataAdapter):
         self.user_id = str(payload["userId"])
         self._ssecurity = base64.b64decode(payload["ssecurity"])
 
-        redirect = await self._client.get(payload["location"])
+        location = payload["location"]
+        if not _is_allowed_login_redirect(location):
+            raise RuntimeError(f"Refusing untrusted login redirect location: {location!r}")
+        redirect = await self._client.get(location)
         redirect.raise_for_status()
         cookie_parts = [value.split(";", 1)[0] for value in redirect.headers.get_list("set-cookie")]
         self._cookies = "; ".join(cookie_parts)
