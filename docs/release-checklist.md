@@ -2,6 +2,7 @@
 
 ## Local validation
 
+- [ ] Version strings match across `pyproject.toml`, `src/mi_fitness_mcp/__init__.py`, and `server.json`.
 - [x] Tests and Ruff pass on supported Python versions.
 - [x] Python syntax checks and `git diff --check` pass.
 - [x] Wheel builds and installs in an isolated target.
